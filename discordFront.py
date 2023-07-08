@@ -12,7 +12,7 @@ BOT_TOKEN = "MTEyNzE5ODMwMDgxMTA1NTE0Ng.GBBFKy.c2qJf9v38nr2_nTp2Pum2wGHCc-9CIxI2
 
 if dev_mode == True:
     ## dev bot token
-    BOT_TOKEN = "MTEyNzE5ODMwMDgxMTA1NTE0Ng.GBBFKy.c2qJf9v38nr2_nTp2Pum2wGHCc-9CIxI2xNYNI"
+    BOT_TOKEN = "MTEyNzIzOTQyMzI1MjIzNDM0MA.GNQ7WY.HFRZXogp853gW7uRTz4W4jRsQMNqhEHJEecqcs"
 
 intents = discord.Intents.default()
 intents.messages = True

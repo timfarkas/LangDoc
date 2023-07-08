@@ -63,7 +63,7 @@ async def generateResponse(data) -> str:
                 user_context["running"] = True
                 user_contexts[user_id] = user_context
 
-                user_context["responses"].append(assistantMessage)
+                user_context["responses"].append(assistantMessage.replace("Anna Johns", "LangDoc"))
                 user_context["responses"].append("You can use '"+command_word+" quit' to quit LangDoc.")
                 
                 # save text after !LangDoc and send it to openai if long enough
