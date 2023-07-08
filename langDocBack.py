@@ -17,6 +17,9 @@ from langchain import PromptTemplate, OpenAI, LLMChain
 
 chat = ChatOpenAI(temperature=0)
 
+# set this to true before starting langDocBack in CLI to be able to chat with it directly
+commandLineMode = False
+
 docSysMsg = ""
 bayesSysMsg = ""
 summarySysMsg = ""
@@ -189,14 +192,13 @@ def printToFile(string):
         print(string, file=f)
 
 
+if commandLineMode:
+    docAnswer = initLangDocAPI(None)
+    print(docAnswer)
+    docAnswer = initPatientConvo(None)
+    print(docAnswer)
 
-#docAnswer = initLangDocAPI(None)
-#print(docAnswer)
-#docAnswer = initPatientConvo(None)
-#print(docAnswer)
-
-#while True:
- #  print(processResponse(input("Your response:")))
-
+    while True:
+        print(processResponse(input("Your response:")))
 
 

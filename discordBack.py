@@ -28,6 +28,7 @@ async def generateResponse(data) -> str:
         user_context = user_contexts[user_id]
         api_key = "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"
         user_context["api_key"] = api_key
+
         """
         # API KEY RETRIEVAL LOGIC
         api_key = user_context.get("api_key")
