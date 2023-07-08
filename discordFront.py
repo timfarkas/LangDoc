@@ -35,8 +35,8 @@ class MyBot(discord.Client):
         data = {"message": message.content, "user_id": str(message.author.id)}
         response = await discordBack.process_message(data)
         
-        if response and 'responses' in response:
-            for msg in response['responses']:
+        if response:
+            for msg in response:
                 await message.channel.send(msg)
         else:
             logger.info("No response generated.")

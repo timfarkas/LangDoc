@@ -22,12 +22,14 @@ async def generateResponse(data) -> str:
         # logger.debug("generateResponse")
         message = data['message'] 
         user_id = data['user_id']
-        responses = {"responses": []}
-        global user_contexts
         
+        global user_contexts
         user_context = user_contexts[user_id]
         api_key = "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"
+        responses = []
+        user_context["user_id"] = user_id
         user_context["api_key"] = api_key
+        user_context["responses"] = responses
 
         """
         # API KEY RETRIEVAL LOGIC
@@ -56,47 +58,46 @@ async def generateResponse(data) -> str:
         if user_context.get("running", False) == False:
             logger.debug("LangDoc is not running (yet).")
             if message.startswith(command_word):
-                assistantMessage = init(data, api_key).content
+                assistantMessage = init(data, user_context).content
                 logger.debug("LangDoc is now running!")
                 user_context["running"] = True
                 user_contexts[user_id] = user_context
 
-                responses["responses"].append(assistantMessage)
-                responses["responses"].append("You can use '"+command_word+" quit' to quit LangDoc.")
+                user_context["responses"].append(assistantMessage)
+                user_context["responses"].append("You can use '"+command_word+" quit' to quit LangDoc.")
                 
                 # save text after !LangDoc and send it to openai if long enough
                 inputMessage = message[len(command_word+" "):]
                 if len(inputMessage) > 3:
                     logger.debug("initial Text is being sent to openai here:" + inputMessage)
-                    response = initPatientConvo(inputMessage).content
-                    responses["responses"].append(response)
+                    response = initPatientConvo(inputMessage, user_context)[-1].content
+                    user_context["responses"].append(response)
                 else:    
-                    response = initPatientConvo(None).content
-                    responses["responses"].append(response)
-                return responses
+                    response = initPatientConvo(None, user_context)[-1].content
+                    user_context["responses"].append(response)
+                return user_context["responses"]
         else:
             logger.debug("LangDoc is running.")
             if message.startswith(command_word):
                 inputMessage = message[len(command_word + " "):]
                 if "quit" in inputMessage.lower() and len(inputMessage) < 6:
                     logger.debug("Quitting LangDoc")
-                    responses["responses"].append("Thank you for supporting LangDoc, we hope it could help you today!")
+                    user_context["responses"].append("Thank you for supporting LangDoc, we hope it could help you today!")
                     user_context["running"] = False
                     user_contexts[user_id] = user_context
                     # quitLangDoc()
-                    return responses
+                    return user_context["responses"]
             inputMessage = message
             logger.debug("input message:"+inputMessage)
-            response = processResponse(inputMessage).content
-            responses["responses"].append(response)        
-            return responses
+            response = processResponse(inputMessage, user_context)[-1].content
+            user_context["responses"].append(response)        
+            return user_context["responses"]
 
 # inits LangDocAPI and gets first answer
-def init(data, api_key):
+def init(data, user_context):
 
         user_id = data['user_id']
         global user_contexts
-        
         user_context = user_contexts[user_id]
         api_key = user_context['api_key']
         # if bot is not running, initializes the back end, otherwise proceeds as it normally would
@@ -105,8 +106,8 @@ def init(data, api_key):
             logger.info("Starting LangDoc for User: "+str(user_id))
             user_context["running"] = True 
             message = data['message']
-            response = initLangDocAPI(api_key)
-            return response   
+            response = initLangDocAPI(user_context)
+            return response[-1]   
         else: 
             generateResponse(data)
 
@@ -115,8 +116,11 @@ async def start_bot(loop):
     pass
 
 async def process_message(data):
+    user_id = data['user_id']
+    global user_contexts
+    user_context = user_contexts[user_id]
     response = await generateResponse(data)
-    if not response or not response["responses"]:
+    if not response or not user_context["responses"]:
         return None
     return response
 

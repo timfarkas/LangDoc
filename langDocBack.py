@@ -14,6 +14,8 @@ from langchain.schema import (
 import time, logging
 from langchain.output_parsers import CommaSeparatedListOutputParser
 from langchain import PromptTemplate, OpenAI, LLMChain
+from collections import defaultdict
+
 
 chat = ChatOpenAI(temperature=0)
 
@@ -24,16 +26,18 @@ docSysMsg = ""
 bayesSysMsg = ""
 summarySysMsg = ""
 
+user_contexts = defaultdict(dict)
+
 # TODO make these local
 summary = None
 docConvo = None
 
 
-# inits LangDoc and returns first doc greeting message
-def initLangDocAPI(api_key):
+# inits LangDoc and returns convo with doc's first greeting message
+def initLangDocAPI(user_context):
     print("Initializing LangDocAPI")
     initSysMsgs()
-    return initDocAgent()
+    return initDocAgent(user_context)
     summary = None
 
 def initSysMsgs():
@@ -59,26 +63,39 @@ def initSysMsgs():
     '''
     summarySysMsg = '''You are a clinical assistant AI tasked with helping doctors with patient anamnesis.
     Your job is to go through the past conversation and output a concise, comprehensive, and formatted overview of their demographics, symptoms, and all relevant data in a bullet point format, ordered by relevance and categorized in a meaningful way. Make sure that you are not missing anything! 
-    You use medical terminology and you may adjust and restructure the summary as needed. However, you don't add any assessments or possible diagnoses, unless explicitly mentioned in the dialogue, as that is the doctor's job.
+    You use appropriate medical terminology and you may adjust and restructure the summary as needed. However, you don't add any assessments or possible diagnoses, unless explicitly mentioned in the dialogue, as that is the doctor's job.
     For example:
     - Symptoms:
-        - Urination: Hematuria, Pollakiuria, Alguria
+        - Urination: Hematuria, Pollakisuria, Alguria
             - Abnormal urination known for half a year, blood is new
     If specific data have not been mentioned yet, you can leave their fields empty or mark them as missing.
     If the conversation contains no data on the patient, be sure to write "No information yet".'''
 
-# inits doc agent with docSysMsg, generates and returns doc's first greeting message 
-def initDocAgent():
+# inits doc agent with docSysMsg, generates and returns convo with doc's first greeting message 
+def initDocAgent(user_context):
+    global user_contexts
     print("Initializing LangDoc Agent")
-    global docConvo
     docConvo = [SystemMessage(content=docSysMsg)]
     docGreeting = chat(docConvo)
     docConvo.append(docGreeting)
-    return docGreeting
+    
+    # adds docConvo to local user_context which is being initialized
+    user_context["docConvo"] = docConvo
+
+    # initializes user_context entry in global variable user_contexts using user_id as the key 
+    # and copying the user context passed from outside
+    user_contexts[user_context["user_id"]] = user_context
+
+    return user_context["docConvo"]
 
 # generates the doctor's response to user's first replies
-def initPatientConvo(patientMessage):
-    global docConvo, summary
+def initPatientConvo(patientMessage, user_context):
+    global user_contexts
+    user_id = user_context["user_id"]
+    docConvo = user_contexts[user_id]["docConvo"]
+    user_contexts[user_id]["summary"] = None
+    summary = user_contexts[user_id]["summary"]
+
     if patientMessage:
         patientMsg = HumanMessage(content=patientMessage)
         docConvo.append(patientMsg)
@@ -87,34 +104,46 @@ def initPatientConvo(patientMessage):
     else:
         docResponse = AIMessage(content="To get started, could you please provide your age, sex, and nationality?")
         docConvo.append(docResponse)
-    
+    user_contexts[user_id]["docConvo"] = docConvo
+    print(user_contexts[user_id]["docConvo"])
     ## generate a first summary
-    summary = summarizeData()
-    return docResponse
+    summary = summarizeData(user_context)
+    user_contexts[user_id]["summary"] = summary
+    return user_contexts[user_id]["docConvo"]
 
 # takes a user's reply and processes it, generating an answer by the doc
-def processResponse(patientMessage):
-    global docConvo, summary
+def processResponse(patientMessage, user_context):
+    global user_contexts
+    user_id = user_context["user_id"]
+    docConvo = user_contexts[user_id]["docConvo"]
+    summary = user_contexts[user_id]["summary"]
+    
     patientMsg = HumanMessage(content=patientMessage)
     docConvo.append(patientMsg)
 
     # updates summary using last two messages by doc and patient
-    summary = updateSummary([docConvo[-2],patientMsg])
+    summary = updateSummary([docConvo[-2],patientMsg], user_context)
+    user_contexts[user_id]["summary"] = summary
     # generates advice from bayesian agent to inform next question and advises doc on it
-    bayesResponse = planNextQuestion(summary)
-    adviseDoc(bayesResponse)
+    bayesResponse = planNextQuestion(user_contexts[user_id]["summary"])
+    adviseDoc(bayesResponse, user_context)
     # generates response
     docResponse = chat(docConvo)
     docConvo.append(AIMessage(content=docResponse.content))
 
-    return docResponse
+    user_contexts[user_id]["docConvo"] = docConvo
+
+    return user_contexts[user_id]["docConvo"]
 
 
 # asks a summary agent to look at the conversation history and previous summaries and outputs an updated summary of the conversation
-def summarizeData():
-    global docConvo
-    global summary
+def summarizeData(user_context):
+    global user_contexts
+    user_id = user_context["user_id"]
+    docConvo = user_contexts[user_id]["docConvo"]
+    summary = user_contexts[user_id]["summary"]
     global summarySysMsg
+
     # go through the whole conversation. if there is no summary yet, update summary
     if not summary:
         if docConvo.__len__()>3:
@@ -129,20 +158,25 @@ def summarizeData():
             command = SystemMessage(content="Now, please generate the summary:")
             pastConvo.append(command)
             summary = chat(pastConvo).content
-            print(summary)
+            user_contexts[user_id]["summary"] = summary
+            print(user_contexts[user_id]["summary"])
         else:
             summary = "No information yet."
+            user_contexts[user_id]["summary"] = summary
     else:
         # updates the summary using the whole conversation, not recommended, better to call updateSummary directly and give it only the last few messages
-        updateSummary(docConvo)
-    return summary
+        updateSummary(docConvo, user_context)
+    return user_contexts[user_id]["summary"]
 
 ## takes the conversation history and outputs an updated summary using the previous summary and the messages in convo 
-def updateSummary(convo):
+def updateSummary(convo, user_context):
+    global user_contexts
+    user_id = user_context["user_id"]
+    summary = user_contexts[user_id]["summary"]
+
     global summarySysMsg
     summarySysMsg = summarySysMsg + "\nSummary of the conversation so far:"
     pastConvo=[SystemMessage(content=summarySysMsg)]
-    global summary
     currentSummary = AIMessage(content=summary) 
     pastConvo.append(currentSummary)
 
@@ -159,15 +193,15 @@ def updateSummary(convo):
 
     newSummary = chat(pastConvo)
     summary = newSummary.content
-    print(summary)
-    return newSummary.content
+    user_contexts[user_id]["summary"] = summary
+    print(user_contexts[user_id]["summary"])
+    return user_contexts[user_id]["summary"]
 
 
 # initializes a bayesian agent who gets a summary string of the conversation and then plans the next question, 
 # outputting a system message instruction
 
 def planNextQuestion(summary):
-    global docConvo    
     bayesConvo=[SystemMessage(content=bayesSysMsg)]
     bayesConvo.append(HumanMessage(content=summary))
     reply = chat(bayesConvo).content
@@ -176,14 +210,19 @@ def planNextQuestion(summary):
     return bayesResponse.content
 
 ### uses advice of bayesian agent to inform doc of most important next questions
-def adviseDoc(bayesAdvice):
-    global docConvo
+def adviseDoc(bayesAdvice,user_context):
+    global user_contexts
+    user_id = user_context["user_id"]
+    docConvo = user_contexts[user_id]["docConvo"]
     if bayesAdvice.__contains__('#### List of Questions'):
         questions = bayesAdvice.split('#### List of Questions')[1]
         bayesMsg = SystemMessage(content=("The Doctor AI requests you to prioritize asking these questions next, if you have not asked them before:"+questions))
         docConvo.append(bayesMsg)
+        user_contexts[user_id]["docConvo"] = docConvo
     else: 
-        print("No advice for now.")
+        bayesMsg = SystemMessage(content=("No advice for now."))
+        docConvo.append(bayesMsg)
+        user_contexts[user_id]["docConvo"] = docConvo
 
 def printToFile(string):
     return
@@ -193,12 +232,15 @@ def printToFile(string):
 
 
 if commandLineMode:
-    docAnswer = initLangDocAPI(None)
+    user_context = None
+    user_context["user_id"] = "TEST_USER"
+    
+    docAnswer = initLangDocAPI(None, user_context)
     print(docAnswer)
-    docAnswer = initPatientConvo(None)
+    docAnswer = initPatientConvo(None, user_context)
     print(docAnswer)
 
     while True:
-        print(processResponse(input("Your response:")))
+        print(processResponse(input("Your response:"), user_context))
 
 
