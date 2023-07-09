@@ -19,7 +19,7 @@ patientSimulations = defaultdict(dict)
 ## initializes a patient simulation with id, initial inputMessages (e.g. initial questions from doc) and patient specification 
 ## defaults to glaucoma patient if no patient specification is passed
 ## initializes patientSimulations[id]["patientConvo"] with all initial messages and adds first patient response
-def initPatientSimulation(id, inputMessages, patientSpecification):
+async def initPatientSimulation(id, inputMessages, patientSpecification):
     print("Initializing Patient Simulation with ID "+ str(id)+ "(testing.initPatientSimulation())")
     global patientSimulations
     patientSimulation = patientSimulations[id]
@@ -119,6 +119,55 @@ def initDemoConversation():
         patientConvo.print("\n\n TESTING COUNTMESSAGE FUNCTION")
         print("Count:"+str(patientConvo.countMessagesOfType(HumanMessage)))
 
+
+## initializes a demo conversation between a patient simulation and langdoc
+def initVignettesDemo():
+    # initializes patient simulation id
+    global patientSimulations
+    vignettes = loadVignettes()
+
+    id = 0
+    for v in vignettes:
+        testDict = defaultdict(dict)
+        user_context=testDict["demoConversation"]
+        user_context["user_id"]="demoConversation"
+    
+    # initializes langdoc api and first doc messages and prints them
+    tester=langDocBack.initLangDocAPI(user_context)
+    #print(tester)
+    response = Conversation(tester)
+    #response.print
+    response.flipRoles(False)
+
+    #for msg in response:
+        #print("Doctor: "+msg.content)
+
+
+    # initializes patient simulation with doc messages and simulation id
+    initPatientSimulation(user_context["user_id"],response,None)
+    patientConvo = patientSimulations[user_context["user_id"]]["patientConvo"]
+
+    # gets doctor's first answer to patient's intro messages
+    docAnswer = Conversation(langDocBack.initPatientConvo(patientConvo.lastMessage().content, user_context))
+
+    patientConvo.addMessage(UserMessage(docAnswer[-1].content))
+    patientSimulations[user_context["user_id"]]["patientConvo"] = patientConvo
+    
+    #print("testing.initDemoConversation() - patientConvo after last init:")
+    #print(patientSimulations[user_context["user_id"]]["patientConvo"])
+
+    #print("Doctor: "+patientSimulations[user_context["user_id"]]["patientConvo"][-1].content)
+
+    while True:
+        generatePatientAnswer(user_context["user_id"])
+        patientConvo = patientSimulations[user_context["user_id"]]["patientConvo"]
+        docReply = langDocBack.processResponse(patientConvo[-1].content, user_context)
+        patientSimulations[user_context["user_id"]]["patientConvo"].addMessage(UserMessage(docReply[-1].content)) 
+       # print("Doctor: "+docReply[-1].content)
+        patientConvo.print("\n\n TESTING COUNTMESSAGE FUNCTION")
+        print("Count:"+str(patientConvo.countMessagesOfType(HumanMessage)))
+
+
 #takes conversation and tests summary bot with it
 def testSummaryBot(conversation):
     print(langDocBack.summarizeData(conversation))
@@ -136,14 +185,21 @@ def exampleConversation(i):
         convo.addMessage("Yes certainly, it's a kind of diffuse, dull pain everywhere in my head and it's really bad. It gets worse when I lower my head.", "human")
         return convo
 
+def loadVignettes():
+    f = open("vignettes.txt", "r")
+    contents = f.read()
+    vignettes = contents.split("===")
+    return vignettes
+
+
+
+
+
+vignettes = loadVignettes()
+
+# for vignette in vignettes:
+    # initPatientSimulation
 
 langDocBack.initSysMsgs()
 testSummaryBot(exampleConversation(1))
 initDemoConversation()
-
-#conv = Conversation(BotMessage("This is a test."))
-#conv.addMessage("Bot Test", "Bot")
-#conv.addMessage("User Test", "User")
-#conv.addMessage("System Test", "System")
-
-#conv.print()

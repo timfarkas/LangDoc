@@ -62,3 +62,4 @@ async def getChannelByName(name):
 async def sendCustomMessages(channelName, messages):
     channel = getChannelByName(channelName)
     await client.sendCustomMessages(channel, messages)
+

@@ -4,6 +4,7 @@ from collections import defaultdict
 import asyncio
 import discordFront
 import logging
+from Conversation import Conversation
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,6 +19,9 @@ if dev_mode == True:
     logging.basicConfig(level=logging.DEBUG)
 
 user_contexts = defaultdict(dict)
+
+def get_dev_mode():
+    return dev_mode
 
 async def generateResponse(data) -> str:
         # logger.debug("generateResponse")
@@ -71,11 +75,11 @@ async def generateResponse(data) -> str:
                 inputMessage = message[len(command_word+" "):]
                 if len(inputMessage) > 3:
                     logger.debug("initial Text is being sent to openai here:" + inputMessage)
-                    response = initPatientConvo(inputMessage, user_context)[-1].content
-                    user_context["responses"].append(response)
+                    user_context = initPatientConvo(inputMessage, user_context)
+                    user_context["responses"].append(user_context["docConvo"].lastMessage().content)
                 else:    
-                    response = initPatientConvo(None, user_context)[-1].content
-                    user_context["responses"].append(response)
+                    user_context = initPatientConvo(None, user_context)
+                    user_context["responses"].append(user_context["docConvo"].lastMessage().content)
                 return user_context["responses"]
         else:
             logger.debug("LangDoc is running.")
@@ -90,7 +94,7 @@ async def generateResponse(data) -> str:
                     return user_context["responses"]
             inputMessage = message
             logger.debug("input message:"+inputMessage)
-            response = processResponse(inputMessage, user_context)[-1].content
+            response = processResponse(inputMessage, user_context)["docConvo"].lastMessage().content
             user_context["responses"].append(response)        
             return user_context["responses"]
 
@@ -108,7 +112,7 @@ def init(data, user_context):
             user_context["running"] = True 
             message = data['message']
             response = initLangDocAPI(user_context)
-            return response[-1]   
+            return response["docConvo"][-1]   
         else: 
             generateResponse(data)
 

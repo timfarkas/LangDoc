@@ -159,7 +159,20 @@ def swapRolesInConversation(conversation, keepSysMsg):
             output.append(BotMessage(msg.content))
     return output
 
-
+## takes a message and checks if it is of the provided type (taking in a string specification of the type)
+def isType(msg, messageType):
+    if messageType == "human" or messageType == "user":
+        if isinstance(msg, langchain.schema.HumanMessage):
+            return True
+    else:
+        if messageType == "bot" or messageType == "ai":
+            if isinstance(msg, AIMessage):
+                return True
+        else:
+            if messageType == "system":
+                if isinstance(msg, langchain.schema.SystemMessage):
+                    return True
+    return False
 
 def BotMessage(text):
     return AIMessage(content=text)
