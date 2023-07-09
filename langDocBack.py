@@ -35,7 +35,7 @@ docConvo = None
 
 # inits LangDoc and returns convo with doc's first greeting message
 def initLangDocAPI(user_context):
-    print("Initializing LangDocAPI")
+    print("Initializing LangDocAPI (langDocBack.initLangDocAPI())")
     initSysMsgs()
     return initDocAgent(user_context)
     summary = None
@@ -74,10 +74,10 @@ def initSysMsgs():
 # inits doc agent with docSysMsg, generates and returns convo with doc's first greeting message 
 def initDocAgent(user_context):
     global user_contexts
-    print("Initializing LangDoc Agent")
+    print("Initializing LangDoc Agent (langDocBack.initDocAgent())")
     docConvo = Conversation(SystemMessage(content=docSysMsg))
     docGreeting = chat(docConvo)
-    print("initDocAgent() - Doctor:"+docGreeting.content)
+    print("Doctor:"+docGreeting.content+"(langDocBack.initDocAgent())")
     docConvo.addMessage(docGreeting)
     
     # adds docConvo to local user_context which is being initialized
@@ -91,7 +91,7 @@ def initDocAgent(user_context):
 
 # generates the doctor's response to user's first replies
 def initPatientConvo(patientMessage, user_context):
-    print("langDocBack.initPatientConvo(): Initializing doc's response to first user replies")
+    print("Initializing doc's response to first user replies (langDocBack.initPatientConvo())")
     global user_contexts
     user_id = user_context["user_id"]
     docConvo = user_contexts[user_id]["docConvo"]
@@ -103,7 +103,7 @@ def initPatientConvo(patientMessage, user_context):
         docConvo.addMessage(patientMsg)
         docResponse = chat(docConvo)
         #(docConvo)
-        print("initPatientConvo() - Doctor: "+docResponse.content)
+        print("Doctor: "+docResponse.content+"(initPatientConvo())")
         docConvo.addMessage(AIMessage(content=docResponse.content))
     else:
         docResponse = AIMessage(content="To get started, could you please provide your age, sex, and nationality?")
@@ -111,7 +111,7 @@ def initPatientConvo(patientMessage, user_context):
     user_contexts[user_id]["docConvo"] = docConvo
     #print(user_contexts[user_id]["docConvo"])
     ## generate a first summary
-    summary = summarizeData(user_context)
+    summary = summarizeDataOld(user_context)
     user_contexts[user_id]["summary"] = summary
     return user_contexts[user_id]["docConvo"]
 
@@ -128,7 +128,7 @@ def processResponse(patientMessage, user_context):
     docConvo.addMessage(patientMsg)
 
     # updates summary using last two messages by doc and patient
-    summary = updateSummary([docConvo[-2],patientMsg], user_context)
+    summary = updateSummaryOld([docConvo[-2],patientMsg], user_context)
     user_contexts[user_id]["summary"] = summary
     # generates advice from bayesian agent to inform next question and advises doc on it
     bayesResponse = planNextQuestion(user_contexts[user_id]["summary"])
@@ -143,8 +143,37 @@ def processResponse(patientMessage, user_context):
     return user_contexts[user_id]["docConvo"]
 
 
+# asks a summary agent to look at the provided conversation history and an optional previous summaries and outputs an (updated) summary of the conversation as a string
+
+def summarizeData(conversation, summary = None):
+    docConvo = conversation.stripSystemMessages()
+    global summarySysMsg
+
+    # go through the whole conversation. if there is no summary yet, update summary
+    if not summary:
+        if docConvo.__len__()>1:
+            print("Init Summary (langDocBack.summarizeData())")
+            summarySysMsg = summarySysMsg + "Here is the conversation history:"
+            pastConvo=Conversation(SystemMessage(content=summarySysMsg))
+            for msg in docConvo:
+                #print("DocConvoMessage, type "+str(type(msg))+": "+msg.content)
+                pastConvo.addMessage(msg)
+                #print("\n")
+            command = SystemMessage(content="Now, please generate the summary:")
+            pastConvo.addMessage(command)
+            summary = chat(pastConvo).content
+            print(summary)
+        else:
+            summary = "No information yet."
+            return summary
+    else:
+        # updates the summary using the whole conversation, not recommended, better to call updateSummary directly and give it only the last few messages
+        updateSummaryOld(docConvo, user_context)
+    return summary
+
+
 # asks a summary agent to look at the conversation history and previous summaries and outputs an updated summary of the conversation
-def summarizeData(user_context):
+def summarizeDataOld(user_context):
     global user_contexts
     user_id = user_context["user_id"]
     docConvo = user_contexts[user_id]["docConvo"]
@@ -154,8 +183,8 @@ def summarizeData(user_context):
     # go through the whole conversation. if there is no summary yet, update summary
     if not summary:
         if docConvo.__len__()>3:
-            print("langDocBack.summarizeData(): Init Summary")
-            #print("langDocBack.summarizeData(): docConvo:")
+            print("langDocBack.summarizeDataOld(): Init Summary")
+            #print("langDocBack.summarizeDataOld(): docConvo:")
             #print(docConvo)
             summarySysMsg = summarySysMsg + "Here is the conversation history:"
             pastConvo=Conversation(SystemMessage(content=summarySysMsg))
@@ -174,11 +203,11 @@ def summarizeData(user_context):
             user_contexts[user_id]["summary"] = summary
     else:
         # updates the summary using the whole conversation, not recommended, better to call updateSummary directly and give it only the last few messages
-        updateSummary(docConvo, user_context)
+        updateSummaryOld(docConvo, user_context)
     return user_contexts[user_id]["summary"]
 
 ## takes the conversation history and outputs an updated summary using the previous summary and the messages in convo 
-def updateSummary(convo, user_context):
+def updateSummaryOld(convo, user_context):
     global user_contexts
     user_id = user_context["user_id"]
     summary = user_contexts[user_id]["summary"]

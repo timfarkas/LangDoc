@@ -11,16 +11,17 @@ class Conversation:
     conversation = None
     
     ## initializes the conversation with several messages
-    def __init__(self, messages):
+    def __init__(self, messages = None):
         conversation = []
-        if checkIfMessages(messages):
-            if isinstance(messages, collections.abc.Sequence) or isinstance(messages, Conversation):
-                for msg in messages:
-                    conversation.append(msg)
+        if messages:
+            if checkIfMessages(messages):
+                if isinstance(messages, collections.abc.Sequence) or isinstance(messages, Conversation):
+                    for msg in messages:
+                        conversation.append(msg)
+                else:
+                    conversation.append(messages)
             else:
-                conversation.append(messages)
-        else:
-            print("Conversation(): Error! Provided initial object are no messages.")
+                print("Conversation(): Error! Provided initial object are no messages.")
         self.conversation = conversation
 
     def __iter__(self): return iter(self.conversation)
@@ -43,15 +44,18 @@ class Conversation:
                     conversation.append(messages)
             self.conversation = conversation
         else:
+            messageType = messageType.lower()
             conversation = self.conversation
-            if messageType == "Human" or messageType == "User":
+            if messageType == "human" or messageType == "user":
                 conversation.append(UserMessage(messages))  
             else:
-                if messageType == "Bot" or messageType == "AI":
+                if messageType == "bot" or messageType == "ai":
                     conversation.append(BotMessage(messages))
                 else:
-                    if messageType == "System":
+                    if messageType == "system":
                         conversation.append(SystemMessage(messages))
+                    else:
+                        print("Conversation.addMessage() - WARNING: message type provided does not match ai/human/system, skipping message.")
             self.conversation = conversation
 
     ## returns last message of conversation
@@ -64,7 +68,16 @@ class Conversation:
 
     ## counts messages of type provided in conversation
     def countMessagesOfType(self, type):
-        return Conversation.countMessagesOfTypeInConvo(self.conversation, type)
+        return countMessagesOfTypeInConvo(self.conversation, type)
+
+    ## returns conversation without system messages
+    def stripSystemMessages(self):
+        conversation = self.conversation
+        output = Conversation()
+        for msg in conversation:
+            if not isinstance(msg, langchain.schema.SystemMessage):
+                output.addMessage(msg)
+        return output
 
     ## goes through conversation history and swaps all human messages with AI messages and vice versa    
     def flipRoles(self):
@@ -115,7 +128,7 @@ def countMessagesOfTypeInConvo(conversation, type):
         i = 0
         for msg in conversation:
             if isinstance(msg, type):
-                i=+1
+                i = i+1
         return i
     else:
         return None

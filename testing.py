@@ -20,7 +20,7 @@ patientSimulations = defaultdict(dict)
 ## defaults to glaucoma patient if no patient specification is passed
 ## initializes patientSimulations[id]["patientConvo"] with all initial messages and adds first patient response
 def initPatientSimulation(id, inputMessages, patientSpecification):
-    print("testing.initPatientSimulation(): Initializing Patient Simulation with ID "+ str(id))
+    print("Initializing Patient Simulation with ID "+ str(id)+ "(testing.initPatientSimulation())")
     global patientSimulations
     patientSimulation = patientSimulations[id]
     #patientSimulation["patientConvo"] = None
@@ -44,7 +44,7 @@ def initPatientSimulation(id, inputMessages, patientSpecification):
     
     patientAnswer = chat(patientConvo)
 
-    print("initPatientSimulation() - Patient:"+patientAnswer.content)
+    print("Patient:"+patientAnswer.content+ "(testing.initPatientSimulation())")
     #print("testing.initPatientSimulation(): Patient:"+patientAnswer.content)
     patientConvo.addMessage(patientAnswer)
     patientSimulation["patientConvo"] = patientConvo
@@ -60,7 +60,7 @@ def generatePatientAnswer(id):
     #print("testing.generatePatientAnswer() - patientConvo:")
     #print(patientConvo)
     patientResponse = chat(patientConvo)
-    print("generatePatientAnswer() - Patient:"+patientResponse.content)
+    print("Patient:"+patientResponse.content+ + "(testing.generatePatientAnswer())")
     patientConvo.addMessage(patientResponse)
 
     patientSimulations[id]["patientConvo"] = patientConvo
@@ -116,12 +116,29 @@ def initDemoConversation():
         docReply = langDocBack.processResponse(patientConvo[-1].content, user_context)
         patientSimulations[user_context["user_id"]]["patientConvo"].addMessage(UserMessage(docReply[-1].content)) 
        # print("Doctor: "+docReply[-1].content)
+        patientConvo.print("\n\n TESTING COUNTMESSAGE FUNCTION")
+        print("Count:"+str(patientConvo.countMessagesOfType(HumanMessage)))
+
+#takes conversation and tests summary bot with it
+def testSummaryBot(conversation):
+    print(langDocBack.summarizeData(conversation))
 
 
-    
+# returns example COnversation of key i
+def exampleConversation(i):
+    if i == 1:
+        convo = Conversation()
+        convo.addMessage("Hi, I am Dr. Who, how can I help you today.", "ai")
+        convo.addMessage("Hi, I am Anna, 22 years old, and I have a headache.", "human")
+        convo.addMessage("I see. Could you tell me more?", "AI")
+        convo.addMessage("Well it started two days ago and it has been getting worse ever since. Now it is really bad and it's been affecting my sleep and concentration.", "human")
+        convo.addMessage("Could you summarize the pain in more detail?", "ai")
+        convo.addMessage("Yes certainly, it's a kind of diffuse, dull pain everywhere in my head and it's really bad. It gets worse when I lower my head.", "human")
+        return convo
 
 
-
+langDocBack.initSysMsgs()
+testSummaryBot(exampleConversation(1))
 initDemoConversation()
 
 #conv = Conversation(BotMessage("This is a test."))
