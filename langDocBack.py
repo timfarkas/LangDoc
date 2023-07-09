@@ -77,6 +77,7 @@ def initDocAgent(user_context):
     print("Initializing LangDoc Agent")
     docConvo = [SystemMessage(content=docSysMsg)]
     docGreeting = chat(docConvo)
+    print("initDocAgent() - Doctor:"+docGreeting.content)
     docConvo.append(docGreeting)
     
     # adds docConvo to local user_context which is being initialized
@@ -90,6 +91,7 @@ def initDocAgent(user_context):
 
 # generates the doctor's response to user's first replies
 def initPatientConvo(patientMessage, user_context):
+    print("langDocBack.initPatientConvo(): Initializing doc's response to first user replies")
     global user_contexts
     user_id = user_context["user_id"]
     docConvo = user_contexts[user_id]["docConvo"]
@@ -100,12 +102,14 @@ def initPatientConvo(patientMessage, user_context):
         patientMsg = HumanMessage(content=patientMessage)
         docConvo.append(patientMsg)
         docResponse = chat(docConvo)
+        #(docConvo)
+        print("initPatientConvo() - Doctor: "+docResponse.content)
         docConvo.append(AIMessage(content=docResponse.content))
     else:
         docResponse = AIMessage(content="To get started, could you please provide your age, sex, and nationality?")
         docConvo.append(docResponse)
     user_contexts[user_id]["docConvo"] = docConvo
-    print(user_contexts[user_id]["docConvo"])
+    #print(user_contexts[user_id]["docConvo"])
     ## generate a first summary
     summary = summarizeData(user_context)
     user_contexts[user_id]["summary"] = summary
@@ -116,7 +120,9 @@ def processResponse(patientMessage, user_context):
     global user_contexts
     user_id = user_context["user_id"]
     docConvo = user_contexts[user_id]["docConvo"]
-    summary = user_contexts[user_id]["summary"]
+    
+    if user_contexts[user_id]["summary"]:
+        summary = user_contexts[user_id]["summary"]
     
     patientMsg = HumanMessage(content=patientMessage)
     docConvo.append(patientMsg)
@@ -129,6 +135,7 @@ def processResponse(patientMessage, user_context):
     adviseDoc(bayesResponse, user_context)
     # generates response
     docResponse = chat(docConvo)
+    print("processResponse() - Doctor: "+docResponse.content)
     docConvo.append(AIMessage(content=docResponse.content))
 
     user_contexts[user_id]["docConvo"] = docConvo
@@ -147,7 +154,9 @@ def summarizeData(user_context):
     # go through the whole conversation. if there is no summary yet, update summary
     if not summary:
         if docConvo.__len__()>3:
-            print("Init Summary")
+            print("langDocBack.summarizeData(): Init Summary")
+            #print("langDocBack.summarizeData(): docConvo:")
+            #print(docConvo)
             summarySysMsg = summarySysMsg + "Here is the conversation history:"
             pastConvo=[SystemMessage(content=summarySysMsg)]   
             for msg in docConvo:
@@ -194,7 +203,7 @@ def updateSummary(convo, user_context):
     newSummary = chat(pastConvo)
     summary = newSummary.content
     user_contexts[user_id]["summary"] = summary
-    print(user_contexts[user_id]["summary"])
+    #print(user_contexts[user_id]["summary"])
     return user_contexts[user_id]["summary"]
 
 

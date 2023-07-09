@@ -2,6 +2,7 @@
 from langDocBack import initLangDocAPI, initPatientConvo, processResponse
 from collections import defaultdict
 import asyncio
+import discordFront
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -110,6 +111,9 @@ def init(data, user_context):
             return response[-1]   
         else: 
             generateResponse(data)
+
+async def sendCustomMessage(channel,message):
+    await discordFront.sendCustomMessages(channel, [message])
 
 async def start_bot(loop):
     # Add any necessary startup code here

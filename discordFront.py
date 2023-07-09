@@ -26,6 +26,11 @@ class MyBot(discord.Client):
     async def on_ready(self):
         logger.info(f"We have logged in as {self.user}")
 
+    async def sendCustomMessages(self, targetChannel, messages):
+        if messages and targetChannel:
+            for msg in messages:
+                   await targetChannel.send(msg)
+
     async def on_message(self, message):
         logger.info("MESSAGE BY "+str(message.author) + ": " + message.content)
         if message.author == self.user or not message.content:
@@ -47,4 +52,13 @@ async def start_bot(loop):
     client.loop = loop
     await client.start(BOT_TOKEN)
 
+async def getChannelByName(name):
+    channels = client.get_all_channels()
+    for channel in channels:
+        if channel.name == name:
+            return channel
+    return None
 
+async def sendCustomMessages(channelName, messages):
+    channel = getChannelByName(channelName)
+    await client.sendCustomMessages(channel, messages)
