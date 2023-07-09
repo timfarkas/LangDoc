@@ -14,7 +14,7 @@ class Conversation:
     def __init__(self, messages):
         conversation = []
         if checkIfMessages(messages):
-            if isinstance(messages, collections.abc.Sequence):
+            if isinstance(messages, collections.abc.Sequence) or isinstance(messages, Conversation):
                 for msg in messages:
                     conversation.append(msg)
             else:
@@ -27,6 +27,8 @@ class Conversation:
 
     def __getitem__(self, key): return self.conversation[key]
 
+    def __len__ (self): return self.conversation.__len__()
+
     ## adds one or several messages to the conversation
     ## either takes a msg object in the second arg
     ## or takes a string and a message type string; types: "human"/"user", "AI"/"bot", "System"
@@ -34,7 +36,7 @@ class Conversation:
         if messageType == None:
             conversation = self.conversation
             if checkIfMessages(messages):
-                if isinstance(messages, collections.abc.Sequence):
+                if isinstance(messages, collections.abc.Sequence) or isinstance(messages, Conversation):
                     for msg in messages:
                         conversation.append(msg)
                 else:
@@ -52,6 +54,18 @@ class Conversation:
                         conversation.append(SystemMessage(messages))
             self.conversation = conversation
 
+    ## returns last message of conversation
+    def lastMessage(self, type = None):
+        if type == None:
+            conversation = self.conversation
+            return conversation[-1]
+        else:
+            print("Conversation.lastMessage(): TODO - ADD THIS FUNCTIONALITY")
+
+    ## counts messages of type provided in conversation
+    def countMessagesOfType(self, type):
+        return Conversation.countMessagesOfTypeInConvo(self.conversation, type)
+
     ## goes through conversation history and swaps all human messages with AI messages and vice versa    
     def flipRoles(self):
         conversation = self.conversation
@@ -66,13 +80,9 @@ class Conversation:
         self.conversation = conversation
 
     ## prints out conversation
-    def print(self):
-        for msg in self.conversation:
-            print([msg.type, msg.content])
-
-    ## prints out conversation
-    def print(self, message):
-        print(message)
+    def print(self, message = None):
+        if message:
+            print(message)
         for msg in self.conversation:
             print([msg.type, msg.content])
 
@@ -83,19 +93,32 @@ class Conversation:
 
 ### takes an object and checks if it is one or several messages
 def checkIfMessages(messages):
-        if isinstance(messages, collections.abc.Sequence):
-            for msg in messages:
-                if not (isinstance(msg, langchain.schema.AIMessage) or isinstance(msg, langchain.schema.HumanMessage) or isinstance(msg, langchain.schema.SystemMessage)):
-                    return False
-                else:
-                    return True
-        else:
-            if isinstance(messages, langchain.schema.AIMessage) or isinstance(messages, langchain.schema.HumanMessage) or isinstance(messages, langchain.schema.SystemMessage):
-                return True
+    flag = None
+    if isinstance(messages, collections.abc.Sequence) or isinstance(messages, Conversation):
+        for msg in messages:
+            if not (isinstance(msg, langchain.schema.AIMessage) or isinstance(msg, langchain.schema.HumanMessage) or isinstance(msg, langchain.schema.SystemMessage)):
+                flag = "Conversation.checkIfMessages(): WARNING - Provided sequence contains non-message type:" + str(msg)
             else:
-                print("THIS SHOULD NOT OCCUR")
-                return False
+                return True
+    else:
+        if isinstance(messages, langchain.schema.AIMessage) or isinstance(messages, langchain.schema.HumanMessage) or isinstance(messages, langchain.schema.SystemMessage):
+            return True
+        else:
+            flag = "Conversation.checkIfMessages(): WARNING - Provided message is non-message type:" + str(messages)
+    if flag:
+        print(flag)
+        return False
 
+## counts messages of type in provided conversation, returns None if it is given non-messages
+def countMessagesOfTypeInConvo(conversation, type):
+    if checkIfMessages(conversation):
+        i = 0
+        for msg in conversation:
+            if isinstance(msg, type):
+                i=+1
+        return i
+    else:
+        return None
 
 ## takes conversation history and swaps all humans with AIs and vice versa    
 def swapRolesInConversation(conversation):

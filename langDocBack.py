@@ -15,7 +15,7 @@ import time, logging
 from langchain.output_parsers import CommaSeparatedListOutputParser
 from langchain import PromptTemplate, OpenAI, LLMChain
 from collections import defaultdict
-
+from Conversation import Conversation
 
 chat = ChatOpenAI(temperature=0)
 
@@ -75,10 +75,10 @@ def initSysMsgs():
 def initDocAgent(user_context):
     global user_contexts
     print("Initializing LangDoc Agent")
-    docConvo = [SystemMessage(content=docSysMsg)]
+    docConvo = Conversation(SystemMessage(content=docSysMsg))
     docGreeting = chat(docConvo)
     print("initDocAgent() - Doctor:"+docGreeting.content)
-    docConvo.append(docGreeting)
+    docConvo.addMessage(docGreeting)
     
     # adds docConvo to local user_context which is being initialized
     user_context["docConvo"] = docConvo
@@ -100,14 +100,14 @@ def initPatientConvo(patientMessage, user_context):
 
     if patientMessage:
         patientMsg = HumanMessage(content=patientMessage)
-        docConvo.append(patientMsg)
+        docConvo.addMessage(patientMsg)
         docResponse = chat(docConvo)
         #(docConvo)
         print("initPatientConvo() - Doctor: "+docResponse.content)
-        docConvo.append(AIMessage(content=docResponse.content))
+        docConvo.addMessage(AIMessage(content=docResponse.content))
     else:
         docResponse = AIMessage(content="To get started, could you please provide your age, sex, and nationality?")
-        docConvo.append(docResponse)
+        docConvo.addMessage(docResponse)
     user_contexts[user_id]["docConvo"] = docConvo
     #print(user_contexts[user_id]["docConvo"])
     ## generate a first summary
@@ -125,7 +125,7 @@ def processResponse(patientMessage, user_context):
         summary = user_contexts[user_id]["summary"]
     
     patientMsg = HumanMessage(content=patientMessage)
-    docConvo.append(patientMsg)
+    docConvo.addMessage(patientMsg)
 
     # updates summary using last two messages by doc and patient
     summary = updateSummary([docConvo[-2],patientMsg], user_context)
@@ -136,7 +136,7 @@ def processResponse(patientMessage, user_context):
     # generates response
     docResponse = chat(docConvo)
     print("processResponse() - Doctor: "+docResponse.content)
-    docConvo.append(AIMessage(content=docResponse.content))
+    docConvo.addMessage(AIMessage(content=docResponse.content))
 
     user_contexts[user_id]["docConvo"] = docConvo
 
@@ -158,14 +158,14 @@ def summarizeData(user_context):
             #print("langDocBack.summarizeData(): docConvo:")
             #print(docConvo)
             summarySysMsg = summarySysMsg + "Here is the conversation history:"
-            pastConvo=[SystemMessage(content=summarySysMsg)]   
+            pastConvo=Conversation(SystemMessage(content=summarySysMsg))
             for msg in docConvo:
                 #print("DocConvoMessage, type "+str(type(msg))+": "+msg.content)
                 if not type(msg) == SystemMessage:
-                    pastConvo.append(msg)
+                    pastConvo.addMessage(msg)
                 print("\n")
             command = SystemMessage(content="Now, please generate the summary:")
-            pastConvo.append(command)
+            pastConvo.addMessage(command)
             summary = chat(pastConvo).content
             user_contexts[user_id]["summary"] = summary
             print(user_contexts[user_id]["summary"])
@@ -185,20 +185,20 @@ def updateSummary(convo, user_context):
 
     global summarySysMsg
     summarySysMsg = summarySysMsg + "\nSummary of the conversation so far:"
-    pastConvo=[SystemMessage(content=summarySysMsg)]
+    pastConvo=Conversation(SystemMessage(content=summarySysMsg))
     currentSummary = AIMessage(content=summary) 
-    pastConvo.append(currentSummary)
+    pastConvo.addMessage(currentSummary)
 
     summarySysMsg2 = "Conversation history since the last summary:"
     sysMsg2 = SystemMessage(content=summarySysMsg2)
-    pastConvo.append(sysMsg2)
+    pastConvo.addMessage(sysMsg2)
     for msg in convo:
         if not type(msg) == SystemMessage:
-            pastConvo.append(msg) 
+            pastConvo.addMessage(msg) 
     
     summarySysMsg3 = "Now, please generate an updated bullet point summary:"
     sysMsg3 = SystemMessage(content=summarySysMsg3)
-    pastConvo.append(sysMsg3)
+    pastConvo.addMessage(sysMsg3)
 
     newSummary = chat(pastConvo)
     summary = newSummary.content
@@ -211,26 +211,26 @@ def updateSummary(convo, user_context):
 # outputting a system message instruction
 
 def planNextQuestion(summary):
-    bayesConvo=[SystemMessage(content=bayesSysMsg)]
-    bayesConvo.append(HumanMessage(content=summary))
+    bayesConvo=Conversation(SystemMessage(content=bayesSysMsg))
+    bayesConvo.addMessage(HumanMessage(content=summary))
     reply = chat(bayesConvo).content
-    bayesResponse = SystemMessage(content=reply)
-    print(bayesResponse.content)
-    return bayesResponse.content
+    bayesResponse = Conversation(SystemMessage(content=reply))
+    print(bayesResponse[-1].content)
+    return bayesResponse
 
 ### uses advice of bayesian agent to inform doc of most important next questions
 def adviseDoc(bayesAdvice,user_context):
     global user_contexts
     user_id = user_context["user_id"]
     docConvo = user_contexts[user_id]["docConvo"]
-    if bayesAdvice.__contains__('#### List of Questions'):
-        questions = bayesAdvice.split('#### List of Questions')[1]
+    if bayesAdvice[-1].content.__contains__('#### List of Questions'):
+        questions = bayesAdvice[-1].content.split('#### List of Questions')[1]
         bayesMsg = SystemMessage(content=("The Doctor AI requests you to prioritize asking these questions next, if you have not asked them before:"+questions))
-        docConvo.append(bayesMsg)
+        docConvo.addMessage(bayesMsg)
         user_contexts[user_id]["docConvo"] = docConvo
     else: 
         bayesMsg = SystemMessage(content=("No advice for now."))
-        docConvo.append(bayesMsg)
+        docConvo.addMessage(bayesMsg)
         user_contexts[user_id]["docConvo"] = docConvo
 
 def printToFile(string):

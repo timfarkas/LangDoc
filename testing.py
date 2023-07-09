@@ -46,7 +46,7 @@ def initPatientSimulation(id, inputMessages, patientSpecification):
 
     print("initPatientSimulation() - Patient:"+patientAnswer.content)
     #print("testing.initPatientSimulation(): Patient:"+patientAnswer.content)
-    #patientConvo.append(patientAnswer)
+    patientConvo.addMessage(patientAnswer)
     patientSimulation["patientConvo"] = patientConvo
     patientSimulations[id] = patientSimulation
 
@@ -99,8 +99,8 @@ def initDemoConversation():
     initPatientSimulation(user_context["user_id"],response,None)
     patientConvo = patientSimulations[user_context["user_id"]]["patientConvo"]
 
-    # gets doctor's first answer to patient's intro messages 
-    docAnswer = Conversation(langDocBack.initPatientConvo(patientConvo[-1].content, user_context))
+    # gets doctor's first answer to patient's intro messages
+    docAnswer = Conversation(langDocBack.initPatientConvo(patientConvo.lastMessage().content, user_context))
 
     patientConvo.addMessage(UserMessage(docAnswer[-1].content))
     patientSimulations[user_context["user_id"]]["patientConvo"] = patientConvo
