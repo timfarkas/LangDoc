@@ -11,10 +11,10 @@ logger = logging.getLogger(__name__)
 
 
 api_key = None
-dev_mode = False
+dev_mode = True
 command_word = "!langdoc"
 
-if dev_mode == True:
+if dev_mode == False:
     command_word = "!dev"
     logging.basicConfig(level=logging.DEBUG)
 

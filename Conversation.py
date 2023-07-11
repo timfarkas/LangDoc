@@ -42,6 +42,8 @@ class Conversation:
                         conversation.append(msg)
                 else:
                     conversation.append(messages)
+            else:
+                raise TypeError("Provided argument does not seem to be of Message type. If you are trying to pass a string, don't forget to pass a messageType argument.")  
             self.conversation = conversation
         else:
             messageType = messageType.lower()

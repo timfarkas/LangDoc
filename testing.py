@@ -23,6 +23,7 @@ async def initPatientSimulation(id, inputMessages, patientSpecification):
     print("Initializing Patient Simulation with ID "+ str(id)+ "(testing.initPatientSimulation())")
     global patientSimulations
     patientSimulation = patientSimulations[id]
+    patientSimulation["patientConvo"] = None
     #patientSimulation["patientConvo"] = None
 
     if not patientSpecification:
@@ -37,6 +38,7 @@ async def initPatientSimulation(id, inputMessages, patientSpecification):
     Keep in mind that you should only ever simulate the responses of the patient and let the students/doctors ask the questions. 
     The next thing the patient says is:
     """
+
     patientConvo = Conversation(SystemMessage(patientSys))
     
     for msg in inputMessages:
@@ -201,5 +203,5 @@ vignettes = loadVignettes()
     # initPatientSimulation
 
 langDocBack.initSysMsgs()
-testSummaryBot(exampleConversation(1))
+#testSummaryBot(exampleConversation(1))
 initDemoConversation()
