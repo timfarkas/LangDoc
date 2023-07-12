@@ -37,14 +37,18 @@ class MyBot(discord.Client):
             return  
 
         
-        data = {"message": message.content, "user_id": str(message.author.id)}
-        response = await discordBack.process_message(data)
+        data = {"message": message.content, "user_id": str(message.author.id), "channel": message.channel}
+        
+        response = await discordBack.process_message(self, data)
         
         if response:
             for msg in response:
                 await message.channel.send(msg)
         else:
             logger.info("No response generated.")
+
+    async def typeFlag(self, channel):
+        await channel.typing()
 
 client = MyBot(intents=intents)
 

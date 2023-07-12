@@ -258,7 +258,7 @@ def adviseDoc(user_context):
         user_context["docConvo"] = docConvo
 
     if auditAdvice:
-        docConvo.addMessage("The Doctor AI requests you to also take this advice to the patient into account, which may be urgent: "+auditAdvice, "system")
+        docConvo.addMessage("The Doctor AI requests you to also take this advice to the patient into account, especially if it seems urgent: "+auditAdvice, "system")
         #print("The Doctor AI requests you to also take this advice to the patient into account, which may be urgent: "+auditAdvice+"(langDocBack.adviseDoc())")
 
     return user_context
@@ -277,10 +277,10 @@ def auditConvo(user_context):
             print("ERROR (langDocBack.auditConvo())")
 
     auditSysMsg =  """
-    You are a medical triaging agent tasked with carefully and accurately evaluating whether a patient should call an ambulance, seek out the emergency room, or seek medical assistance.
+    You are a medical triaging agent tasked with carefully and accurately evaluating whether a patient should call an ambulance, or seek out the emergency room.
     You will receive a medical summary of a patient's symptoms and history along with information on most likely differential diagnoses.
-    You will then reason about what kind of help the patient should seek. Think step by step. 
-    Conclude your reasoning with "### ADVICE" followed by the advice that should be shown to the patient.
+    You will then reason about the case being an emergency. Think step by step.
+    Conclude your reasoning with "### ADVICE" followed by the advice that should be shown to the patient. If the case is not an emergency, just give advice about the medical problem that the patient could be experiencing.
     """
     
     auditConvo = Conversation(SystemMessage(content=auditSysMsg))

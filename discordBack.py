@@ -11,10 +11,10 @@ logger = logging.getLogger(__name__)
 
 
 api_key = None
-dev_mode = True
+dev_mode = False
 command_word = "!langdoc"
 
-if dev_mode == False:
+if dev_mode == True:
     command_word = "!dev"
     logging.basicConfig(level=logging.DEBUG)
 
@@ -23,10 +23,11 @@ user_contexts = defaultdict(dict)
 def get_dev_mode():
     return dev_mode
 
-async def generateResponse(data) -> str:
+async def generateResponse(bot, data) -> str:
         # logger.debug("generateResponse")
         message = data['message'] 
         user_id = data['user_id']
+        channel = data['channel']
         
         global user_contexts
         user_context = user_contexts[user_id]
@@ -75,9 +76,11 @@ async def generateResponse(data) -> str:
                 inputMessage = message[len(command_word+" "):]
                 if len(inputMessage) > 3:
                     logger.debug("initial Text is being sent to openai here:" + inputMessage)
+                    await bot.typeFlag(channel) 
                     user_context = initPatientConvo(inputMessage, user_context)
                     user_context["responses"].append(user_context["docConvo"].lastMessage().content)
-                else:    
+                else:
+                    await bot.typeFlag(channel) 
                     user_context = initPatientConvo(None, user_context)
                     user_context["responses"].append(user_context["docConvo"].lastMessage().content)
                 return user_context["responses"]
@@ -94,6 +97,7 @@ async def generateResponse(data) -> str:
                     return user_context["responses"]
             inputMessage = message
             logger.debug("input message:"+inputMessage)
+            await bot.typeFlag(channel) 
             response = processResponse(inputMessage, user_context)["docConvo"].lastMessage().content
             user_context["responses"].append(response)        
             return user_context["responses"]
@@ -111,6 +115,7 @@ def init(data, user_context):
             logger.info("Starting LangDoc for User: "+str(user_id))
             user_context["running"] = True 
             message = data['message']
+            # HERE
             response = initLangDocAPI(user_context)
             return response["docConvo"][-1]   
         else: 
@@ -123,11 +128,11 @@ async def start_bot(loop):
     # Add any necessary startup code here
     pass
 
-async def process_message(data):
+async def process_message(bot, data):
     user_id = data['user_id']
     global user_contexts
     user_context = user_contexts[user_id]
-    response = await generateResponse(data)
+    response = await generateResponse(bot, data)
     if not response or not user_context["responses"]:
         return None
     return response
