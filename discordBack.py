@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 api_key = None
-dev_mode = True
+dev_mode = False
 command_word = "!langdoc"
 
 if dev_mode == True:
