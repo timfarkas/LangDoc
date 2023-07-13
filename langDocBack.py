@@ -69,8 +69,8 @@ def initSysMsgs():
     - Symptoms:
         - Urination: Hematuria, Pollakisuria, Alguria
             - Abnormal urination known for half a year, blood is new
-    If specific data have not been mentioned yet, you can leave their fields empty or mark them as missing.
-    If the conversation contains no data on the patient, be sure to write "No information yet".'''
+    If specific data have not been mentioned yet, you can leave their fields empty or mark them as missing.If symptoms are not being experienced (negative experience), you add that too.
+    If the conversation contains no data on the patient yet, or if it is very short (<4 messages), write "Not enough data yet".'''
 
 # inits doc agent with docSysMsg, generates and returns user_context with user_context["docConvo"] with doc's first greeting message 
 def initDocAgent(user_context):
@@ -262,7 +262,7 @@ def adviseDoc(user_context):
         #print("The Doctor AI requests you to also take this advice to the patient into account, which may be urgent: "+auditAdvice+"(langDocBack.adviseDoc())")
 
     return user_context
-    
+
 # takes user context with bayesAdvice and summary and audits it to look for exit criteria
 # returns 
 def auditConvo(user_context):
