@@ -1,5 +1,5 @@
+from multiprocessing import log_to_stderr
 from langchain.chat_models import ChatOpenAI
-from langchain import PromptTemplate, LLMChain
 from langchain.prompts.chat import (
     ChatPromptTemplate,
     SystemMessagePromptTemplate,
@@ -11,9 +11,7 @@ from langchain.schema import (
     HumanMessage,
     SystemMessage
 )
-import time, logging
-from langchain.output_parsers import CommaSeparatedListOutputParser
-from langchain import PromptTemplate, OpenAI, LLMChain
+import logging, traceback
 from collections import defaultdict
 from Conversation import Conversation, isType
 
@@ -27,27 +25,36 @@ docSysMsg = ""
 bayesSysMsg = ""
 summarySysMsg = ""
 
+logger = logging.getLogger()
 user_contexts = defaultdict(dict)
-
-# TODO make these local
 summary = None
 docConvo = None
 
+#logger = multiprocessing.log_to_stderr() 
+#logger.getL(logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
 # inits LangDoc taking a user context and returns user_context with user_context["docConvo"] containing doc's first greeting message
-def initLangDocAPI(user_context):
-    print("Initializing LangDocAPI (langDocBack.initLangDocAPI())")
+def initLangDocAPI(user_context, logger = None):
+    try:
+        logger = user_context["logger"]
+    except KeyError as e:
+        if logger == None: 
+            logger = logging.getLogger()
+            user_context["logger"] = logger
+        else:
+            user_context["logger"] = logger
+    logger.info("Initializing LangDocAPI (langDocBack.initLangDocAPI())")
     initSysMsgs()
     return initDocAgent(user_context)
-    summary = None
 
 def initSysMsgs():
     global docSysMsg, bayesSysMsg, summarySysMsg
     # docSysMsg = "You are 'Dr. John', a diligent and smart doctor's assistant AI starting a conversation with a new patient. You are to explore their symptoms step by step, doing a structured, symptom-oriented anamnesis. Keep in mind that you should only ever simulate the responses of the doc and let the patient talk about their symptoms. You only ever ask one question at a time to avoid overwhelming patients. You will get further instructions by a Bayesian Clinical AI on what to ask the patient, which you follow. The next thing the doc says is:"
     docSysMsg = '''You are Anna Johns, a diligent and smart medical assistant starting a conversation with a new patient. 
-    You are to explore their symptoms step by step, doing a structured, symptom-oriented anamnesis. 
+    You are to explore their symptoms step by step, doing a structured, symptom-oriented anamnesis, in a professional, empathetic way, asking open-ended questions and taking patients seriously.
     There is a doctor AI in the room, who will give you advice on what the most important next questions are. You take his recommendations very seriously, as he has a lot of experience, and you ask one question at a time.
-    You only ever ask one question at a time to avoid overwhelming patients, that is, *you only ever ask one questions at a time*. You don't re-ask questions that have already been answered, but you should aim for a thorough and comprehensive picture. You will only end the conversation or mention next diagnostic/medical steps once the doctors tells you that we have gathered enough information.
+    You only ever ask one question at a time to avoid overwhelming patients, that is, *you only ever ask one questions at a time*. You don't re-ask questions that have already been answered, but you should aim for a thorough and comprehensive picture, which means that you sometimes ask follow-up questions to dig deeper. You will only end the conversation or mention next diagnostic/medical steps once the doctors tells you that we have gathered enough information.
     The next thing Anna Johns says is:
     '''
     #patientSys = "You are PatientGPT, designed to simulate patients as realistically as possible for med students and doctors to practice their anamnesis skills. Today, you will play Ms. Rodriqguez, a 60 year old smoker with yet undiagnosed morbus meniere. As the medics are asking you questions, make up realistic symptoms, patient history and do a good job of providing a realistic patient anamnesis experience. Keep in mind that you should only ever simulate the responses of the patient and let the students/doctors ask the questions. The next thing the patient says is:"
@@ -74,10 +81,11 @@ def initSysMsgs():
 
 # inits doc agent with docSysMsg, generates and returns user_context with user_context["docConvo"] with doc's first greeting message 
 def initDocAgent(user_context):
-    print("Initializing LangDoc Agent (langDocBack.initDocAgent())")
+    logger = user_context["logger"]
+    logger.info("Initializing LangDoc Agent (langDocBack.initDocAgent())")
     docConvo = Conversation(SystemMessage(content=docSysMsg))
     docGreeting = chat(docConvo)
-    print("Doctor:"+docGreeting.content+"(langDocBack.initDocAgent())")
+    logger.info("Doctor:"+docGreeting.content+"(langDocBack.initDocAgent())")
     docConvo.addMessage(docGreeting)
     
     # adds docConvo to local user_context which is being initialized
@@ -91,7 +99,7 @@ def initDocAgent(user_context):
 # generates the doctor's response to a user's first replies
 # takes user context and initialMessages
 def initPatientConvo(initialMessages, user_context):
-    print("Initializing doc's response to first user replies (langDocBack.initPatientConvo())")
+    logger.info("Initializing doc's response to first user replies (langDocBack.initPatientConvo())")
 
     user_id = user_context["user_id"]
     docConvo = user_context["docConvo"]
@@ -104,7 +112,7 @@ def initPatientConvo(initialMessages, user_context):
     if initialMessages:
         docConvo.addMessage(initialMessages, "human")
         docResponse = chat(docConvo)
-        print("Doctor: "+docResponse.content+"(initPatientConvo())")
+        logger.info("Doctor: "+docResponse.content+"(initPatientConvo())")
         docConvo.addMessage(AIMessage(content=docResponse.content))
     else:
         docResponse = AIMessage(content="To get started, could you please provide your age, sex, and nationality?")
@@ -112,13 +120,13 @@ def initPatientConvo(initialMessages, user_context):
     user_context["docConvo"] = docConvo
     
     ## generate a first summary
-    summary = summarizeData(user_context["docConvo"])
+    summary = summarizeData(user_context)
     user_context["summary"] = summary
     return user_context
 
 # takes a user's reply and processes it, returning user_context with user_context["docConvo"] with added reply from doc 
 def processResponse(patientMessage, user_context):
-
+    logger = user_context["logger"]
     ## appends patient message to convo
     patientMsg = HumanMessage(content=patientMessage)
     user_context["docConvo"].addMessage(patientMsg)
@@ -131,7 +139,7 @@ def processResponse(patientMessage, user_context):
     user_context["summary"] = summary
 
     # generates advice from bayesian agent to inform next question and advises doc on it
-    bayesResponse = planNextQuestion(user_context["summary"])
+    bayesResponse = planNextQuestion(user_context)
     user_context["bayesAdvice"] = bayesResponse
     
 
@@ -145,7 +153,7 @@ def processResponse(patientMessage, user_context):
             lastAudit = 1
             user_context = auditConvo(user_context)
             if user_context["auditAdvice"]:
-                print("Audit Advice: "+user_context["auditAdvice"])
+                logger.info("Audit Advice: "+user_context["auditAdvice"])
         else:
             lastAudit = lastAudit + 1
     user_context["lastAudit"] = lastAudit
@@ -155,7 +163,7 @@ def processResponse(patientMessage, user_context):
 
     # generates response
     docResponse = chat(user_context["docConvo"])
-    print("processResponse() - Doctor: "+docResponse.content)
+    logger.info("processResponse() - Doctor: "+docResponse.content)
     docConvo.addMessage(AIMessage(content=docResponse.content))
 
     user_context["docConvo"] = docConvo
@@ -164,8 +172,11 @@ def processResponse(patientMessage, user_context):
     return user_context
 
 
-# asks a summary agent to look at the provided conversation history and an optional previous summaries and outputs an (updated) summary of the conversation as a string
-def summarizeData(conversation, summary = None):
+# asks a summary agent to look at the conversation history in the user_context and an optional previous summaries and outputs an (updated) summary of the conversation as a string
+def summarizeData(user_context):
+    updateSummary(user_context)
+
+    """
     docConvo = conversation.stripSystemMessages()
     global summarySysMsg
 
@@ -175,13 +186,13 @@ def summarizeData(conversation, summary = None):
             summarySysMsg = summarySysMsg + "Here is the conversation history:"
             pastConvo=Conversation(SystemMessage(content=summarySysMsg))
             for msg in docConvo:
-                #print("DocConvoMessage, type "+str(type(msg))+": "+msg.content)
+                #logger.info("DocConvoMessage, type "+str(type(msg))+": "+msg.content)
                 pastConvo.addMessage(msg)
-                #print("\n")
+                #logger.info("\n")
             command = SystemMessage(content="Now, please generate the summary:")
             pastConvo.addMessage(command)
             summary = chat(pastConvo).content
-            print(summary)
+            logger.info(summary)
             return summary
         else:
             summary = None
@@ -190,13 +201,23 @@ def summarizeData(conversation, summary = None):
         # updates the summary using the whole conversation, not recommended, better to call updateSummary directly and give it only the last few messages
         summary = updateSummary(user_context, user_context["docConvo"].__len__())
         return summary
-    
+    """
 ## takes the user_context, looks at the conversation history and returns user_context with the updated summary
 #  an updated summary using the previous summary and the previous two messages in convo 
-def updateSummary(user_context, span = 3):
-    summary = user_context["summary"]
-    convo = user_context["docConvo"]
-    
+## if span = None, it looks at the whole conversation
+def updateSummary(user_context, span = None):
+    try:
+        summary = user_context["summary"]
+    except KeyError as e:
+        user_context["summary"] = None
+        summary = None
+
+    logger = user_context["logger"]
+    convo = user_context["docConvo"].stripSystemMessages()
+    if span == None:
+        span = convo.__len__()
+
+
     global summarySysMsg
     summarySysMsg = summarySysMsg + "\nSummary of the conversation so far:"
     
@@ -212,30 +233,38 @@ def updateSummary(user_context, span = 3):
     sysMsg2 = SystemMessage(content=summarySysMsg2)
     pastConvo.addMessage(sysMsg2)
     
-    for i in range(span):
-        msg = convo[-(span-i)]
-        if not type(msg) == SystemMessage:
-            pastConvo.addMessage(msg) 
-    
+    try:
+        for i in range(span):
+            #print("Message "+str(i)+" / "+str(-(span-i)))
+            #print(str(convo[-(span-i)])) 
+            msg = convo[-(span-i)]
+            if not type(msg) == SystemMessage:
+                pastConvo.addMessage(msg) 
+    except:
+        logger.error("Error while iterating through conversation, did you provide a range that is shorter than the conversation? langDocBack.updateSummary()")
+        logger.error(traceback.format_exc())
+
     summarySysMsg3 = "Now, please generate an updated bullet point summary:"
     sysMsg3 = SystemMessage(content=summarySysMsg3)
     pastConvo.addMessage(sysMsg3)
     newSummary = chat(pastConvo)
     summary = newSummary.content
-    print("--- SUMMARY OF " + str(user_context["user_id"]) + "---\n"+summary)
+    logger.info("--- SUMMARY OF " + str(user_context["user_id"]) + "---\n"+summary)
     return summary
 
 
 # initializes a bayesian agent who gets a summary string of the conversation and then plans the next question, 
 # outputting a system message instruction
 
-def planNextQuestion(summary):
+def planNextQuestion(user_context): 
+    logger = user_context["logger"]
+    summary = user_context["summary"]
     if summary and len(summary)>150:
         bayesConvo=Conversation(SystemMessage(content=bayesSysMsg))
         bayesConvo.addMessage(HumanMessage(content=summary))
         reply = chat(bayesConvo).content
         bayesResponse = SystemMessage(content=reply)
-        print("--- BAYESIAN ADVICE ---\n"+ bayesResponse.content)
+        logger.info("--- BAYESIAN ADVICE ---\n"+ bayesResponse.content)
         return bayesResponse
     else:
         return None
@@ -243,6 +272,7 @@ def planNextQuestion(summary):
 ### uses advice of bayesian agent and/or audit agent to inform doc of most important next questions/steps
 ### takes user_context with bayesAdvice and auditAdvice, returns user_context with system messages for the doc
 def adviseDoc(user_context):
+    logger = user_context["logger"]
     docConvo = user_context["docConvo"]
     bayesAdvice = user_context["bayesAdvice"]
     auditAdvice = user_context["auditAdvice"]
@@ -259,22 +289,26 @@ def adviseDoc(user_context):
 
     if auditAdvice:
         docConvo.addMessage("The Doctor AI requests you to also take this advice to the patient into account, especially if it seems urgent: "+auditAdvice, "system")
-        #print("The Doctor AI requests you to also take this advice to the patient into account, which may be urgent: "+auditAdvice+"(langDocBack.adviseDoc())")
+        #logger.info("The Doctor AI requests you to also take this advice to the patient into account, which may be urgent: "+auditAdvice+"(langDocBack.adviseDoc())")
 
     return user_context
 
 # takes user context with bayesAdvice and summary and audits it to look for exit criteria
 # returns 
 def auditConvo(user_context):
+    logger = user_context["logger"]
     bayesAdvice = user_context["bayesAdvice"]
     summary = user_context["summary"]
-
-    if bayesAdvice and bayesAdvice.content.__contains__('#### List of Questions') and bayesAdvice.content.__contains__("Step 2:"):
+    diagnoses = None
+    if bayesAdvice and (bayesAdvice.content.__contains__('#### List of Questions') or bayesAdvice.content.__contains__('Step 3: List of Questions')) and bayesAdvice.content.__contains__("Step 2:"):
         try:
             diagnoses = user_context["bayesAdvice"].content.split('Step 2:')[1]
-            diagnoses = diagnoses.split('#### List of Questions')[0]
+            if bayesAdvice.content.__contains__('#### List of Questions'):
+                diagnoses = diagnoses.split('#### List of Questions')[0]  
+            else:
+                diagnoses = diagnoses.split('Step 3: List of Questions')[0]
         except:
-            print("ERROR (langDocBack.auditConvo())")
+            logger.info("ERROR (langDocBack.auditConvo())")
 
     auditSysMsg =  """
     You are a medical triaging agent tasked with carefully and accurately evaluating whether a patient should call an ambulance, or seek out the emergency room.
@@ -304,14 +338,14 @@ def auditConvo(user_context):
     audit = chat(auditConvo)
     audit = audit.content
 
-    print("--- AUDIT OF " + str(user_context["user_id"]) + "---\n"+audit)
+    logger.info("--- AUDIT OF " + str(user_context["user_id"]) + "---\n"+audit)
     if audit.__contains__('### ADVICE'):
-        print("AUDIT CONTAINS ADVICE; SPLITTING")
+        logger.info("AUDIT CONTAINS ADVICE; SPLITTING")
         audit = audit.split('### ADVICE')   
         user_context["auditAdvice"] = audit[1]
-        print("ADVICE SPLIT: "+user_context["auditAdvice"]+"(auditConvo)")
+        logger.info("ADVICE SPLIT: "+user_context["auditAdvice"]+"(auditConvo)")
     else:
-        print("NO ADVICE GENERATED (auditConvo)")
+        logger.info("NO ADVICE GENERATED (auditConvo)")
         user_context["auditAdvice"] = None
 
     return user_context
@@ -320,8 +354,8 @@ def auditConvo(user_context):
 def printToFile(string):
     return
     with open("convo.txt", "a") as f:
-        print(string)
-        print(string, file=f)
+        logger.info(string)
+        logger.info(string, file=f)
 
 
 if commandLineMode:
@@ -329,13 +363,13 @@ if commandLineMode:
     user_context["user_id"] = "TEST_USER"
     
     user_context = initLangDocAPI(user_context)
-    #print(user_context["docConvo"].lastMessage())
+    #logger.info(user_context["docConvo"].lastMessage())
     
     user_context = initPatientConvo("Hi, I have a medical problem.", user_context)
-    print("Patient: Hi, I have a medical problem.")
-    #print(user_context["docConvo"].lastMessage())
+    logger.info("Patient: Hi, I have a medical problem.")
+    #logger.info(user_context["docConvo"].lastMessage())
 
-    #print("TRUE LOOP REACHED")
+    #logger.info("TRUE LOOP REACHED")
     while True:
         user_context = processResponse(input("Your response:"), user_context)
 

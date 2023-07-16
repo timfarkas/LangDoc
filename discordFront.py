@@ -1,11 +1,13 @@
+from multiprocessing import log_to_stderr
 import discord
 import requests
 import discordBack
 import asyncio
 import logging
 
+
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = log_to_stderr()
 
 dev_mode = False
 BOT_TOKEN = "MTEyNzE5ODMwMDgxMTA1NTE0Ng.GBBFKy.c2qJf9v38nr2_nTp2Pum2wGHCc-9CIxI2xNYNI"

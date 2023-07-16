@@ -1,5 +1,5 @@
 import collections
-from logging import Logger
+import logging
 import langchain.schema
 from langchain.schema import (
     AIMessage,
@@ -11,7 +11,7 @@ class Conversation:
     conversation = None
     
     ## initializes the conversation with several messages
-    def __init__(self, messages = None):
+    def __init__(self, messages = None, logger = logging.getLogger()):
         conversation = []
         if messages:
             if checkIfMessages(messages):
@@ -21,7 +21,7 @@ class Conversation:
                 else:
                     conversation.append(messages)
             else:
-                print("Conversation(): Error! Provided initial object are no messages.")
+                raise TypeError("Conversation(): Error! Provided initial object are no messages.")
         self.conversation = conversation
 
     def __iter__(self): return iter(self.conversation)
