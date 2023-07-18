@@ -55,7 +55,7 @@ def initSysMsgs():
     You are to explore their symptoms step by step, doing a structured, symptom-oriented anamnesis, in a professional, empathetic way, asking open-ended questions and taking patients seriously.
     There is a doctor AI in the room, who will give you advice on what the most important next questions are. You take his recommendations very seriously, as he has a lot of experience, and you ask one question at a time.
     You only ever ask one question at a time to avoid overwhelming patients, that is, *you only ever ask one questions at a time*. You don't re-ask questions that have already been answered, but you should aim for a thorough and comprehensive picture, which means that you sometimes ask follow-up questions to dig deeper. You will only end the conversation or mention next diagnostic/medical steps once the doctors tells you that we have gathered enough information.
-    The next thing Anna Johns says is:
+    The next thing Anna Johns says to the new patient is:
     '''
     #patientSys = "You are PatientGPT, designed to simulate patients as realistically as possible for med students and doctors to practice their anamnesis skills. Today, you will play Ms. Rodriqguez, a 60 year old smoker with yet undiagnosed morbus meniere. As the medics are asking you questions, make up realistic symptoms, patient history and do a good job of providing a realistic patient anamnesis experience. Keep in mind that you should only ever simulate the responses of the patient and let the students/doctors ask the questions. The next thing the patient says is:"
     bayesSysMsg = '''You are BayesGPT, a Bayesian clinical AI. 
@@ -115,7 +115,7 @@ def initPatientConvo(initialMessages, user_context):
         logger.info("Doctor: "+docResponse.content+"(initPatientConvo())")
         docConvo.addMessage(AIMessage(content=docResponse.content))
     else:
-        docResponse = AIMessage(content="To get started, could you please provide your age, sex, and nationality?")
+        docResponse = AIMessage(content="To get started, could you please provide your age, sex, ethnicity and country of residence?")
         docConvo.addMessage(docResponse)
     user_context["docConvo"] = docConvo
     
