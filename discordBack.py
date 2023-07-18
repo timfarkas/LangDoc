@@ -64,7 +64,7 @@ async def generateResponse(bot, data) -> str:
         if user_context.get("running", False) == False:
             logger.debug("LangDoc is not running (yet).")
             if message.startswith(command_word):
-                assistantMessage = init(data, user_context).content
+                assistantMessage = init(data, user_context).content.strip('"')
                 logger.debug("LangDoc is now running!")
                 user_context["running"] = True
                 user_contexts[user_id] = user_context
