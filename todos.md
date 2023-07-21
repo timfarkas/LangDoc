@@ -9,7 +9,7 @@
         - [ ] hundred summaries, how many hallucinations?
 - [ ] more dynamic summarization, advising and auditing
     - [ ] first summary only after four messages
-- [ ] utilize different gpt models for different sub agents
+- [X] utilize different gpt models for different sub agents
 - [X] fixed typing indicator
 
 ### Summary criqitue sys

@@ -15,7 +15,8 @@ import logging, traceback
 from collections import defaultdict
 from Conversation import Conversation, isType
 
-chat = ChatOpenAI(temperature=0, model_name="gpt-4")
+chat3 = ChatOpenAI(temperature=0)
+chat4 = ChatOpenAI(temperature=0, model_name="gpt-4")
 dev_mode = False
 
 # set this to true before starting langDocBack in CLI to be able to chat with it directly
@@ -89,7 +90,7 @@ def initDocAgent(user_context):
     logger = user_context["logger"]
     logger.debug("Initializing LangDoc Agent (langDocBack.initDocAgent())")
     docConvo = Conversation(SystemMessage(content=docSysMsg))
-    docGreeting = chat(docConvo)
+    docGreeting = chat3(docConvo)
     logger.info("Doctor:"+docGreeting.content+"(langDocBack.initDocAgent())")
     docConvo.addMessage(docGreeting)
     
@@ -120,7 +121,7 @@ def initPatientConvo(initialMessages, user_context):
     if initialMessages:
         docConvo.addMessage(initialMessages, "human")
         logger.info("Initializing doc's response to first user replies (langDocBack.initPatientConvo())")
-        docResponse = chat(docConvo)
+        docResponse = chat3(docConvo)
         logger.info("Doctor: "+docResponse.content+"(initPatientConvo())")
         docConvo.addMessage(AIMessage(content=docResponse.content))
         ## generate a first summary
@@ -175,7 +176,7 @@ def processResponse(patientMessage, user_context):
     user_context = adviseDoc(user_context)
 
     # generates response
-    docResponse = chat(user_context["docConvo"])
+    docResponse = chat3(user_context["docConvo"])
     logger.info("processResponse() - Doctor: "+docResponse.content)
     docConvo.addMessage(AIMessage(content=docResponse.content))
 
@@ -273,7 +274,7 @@ def updateSummary(user_context, span = None):
     summarySysMsg3 = "Now, please generate an updated bullet point summary:"
     sysMsg3 = SystemMessage(content=summarySysMsg3)
     pastConvo.addMessage(sysMsg3)
-    newSummary = chat(pastConvo)
+    newSummary = chat3(pastConvo)
     summary = newSummary.content
     logger.info("--- SUMMARY OF " + str(user_context["user_id"]) + "---\n"+summary)
     return summary
@@ -289,7 +290,7 @@ def planNextQuestion(user_context):
     if summary and len(summary)>200:
         bayesConvo=Conversation(SystemMessage(content=bayesSysMsg))
         bayesConvo.addMessage(HumanMessage(content=summary))
-        reply = chat(bayesConvo).content
+        reply = chat4(bayesConvo).content
         bayesResponse = SystemMessage(content=reply)
         logger.info("--- BAYESIAN ADVICE ---\n"+ bayesResponse.content)
         return bayesResponse
@@ -366,7 +367,7 @@ def auditConvo(user_context):
 
     auditConvo.addMessage("""Now, please reason about what kind of help the patient should seek, thinking step by step. Be sure to conclude your reasoning with "### ADVICE" followed by the advice that should be shown to the patient.""","system")
     
-    audit = chat(auditConvo)
+    audit = chat4(auditConvo)
     audit = audit.content
 
     logger.info("--- AUDIT OF " + str(user_context["user_id"]) + "---\n"+audit)
