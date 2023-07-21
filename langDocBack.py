@@ -392,6 +392,7 @@ def printToFile(string):
 
 
 if commandLineMode:
+    logger = logging.getLogger()
     user_context = {}
     user_context["user_id"] = "TEST_USER"
     
@@ -405,5 +406,3 @@ if commandLineMode:
     #logger.info("TRUE LOOP REACHED")
     while True:
         user_context = processResponse(input("Your response:"), user_context)
-
-
