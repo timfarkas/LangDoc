@@ -275,7 +275,8 @@ def updateSummary(user_context, span = None):
     sysMsg3 = SystemMessage(content=summarySysMsg3)
     pastConvo.addMessage(sysMsg3)
     newSummary = chat3(pastConvo)
-    summary = newSummary.content
+    if not summary or len(newSummary.content)>len(summary)/2:
+        summary = newSummary.content
     logger.info("--- SUMMARY OF " + str(user_context["user_id"]) + "---\n"+summary)
     return summary
 
@@ -287,7 +288,7 @@ def planNextQuestion(user_context):
     logger = user_context["logger"]
     logger.debug("langDocBack.planNextQuestion()")
     summary = user_context["summary"]
-    if summary and len(summary)>200:
+    if summary and (len(summary)>200 or user_context["docConvo"].__len__()>8):
         bayesConvo=Conversation(SystemMessage(content=bayesSysMsg))
         bayesConvo.addMessage(HumanMessage(content=summary))
         reply = chat4(bayesConvo).content

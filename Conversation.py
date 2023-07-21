@@ -32,7 +32,7 @@ class Conversation:
 
     def __getitem__(self, key): return self.conversation[key]
 
-    def __len__ (self): return self.conversation.__len__()
+    def __len__(self): return self.conversation.__len__()
 
     ## adds one or several messages to the conversation
     ## either takes a msg object in the second arg
