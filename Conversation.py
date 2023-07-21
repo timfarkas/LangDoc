@@ -9,9 +9,11 @@ from langchain.schema import (
 
 class Conversation:
     conversation = None
-    
+    logger = None
+    lastNewRequestLen = 0
+
     ## initializes the conversation with several messages
-    def __init__(self, messages = None, logger = logging.getLogger()):
+    def __init__(self, messages = None, logger = None):
         conversation = []
         if messages:
             if checkIfMessages(messages):
@@ -23,6 +25,8 @@ class Conversation:
             else:
                 raise TypeError("Conversation(): Error! Provided initial object are no messages.")
         self.conversation = conversation
+        if logger == None:
+            self.logger = logging.getLogger()
 
     def __iter__(self): return iter(self.conversation)
 
@@ -34,6 +38,7 @@ class Conversation:
     ## either takes a msg object in the second arg
     ## or takes a string and a message type string; types: "human"/"user", "AI"/"bot", "System"
     def addMessage(self, messages, messageType = None):
+        logger = self.logger
         if messageType == None:
             conversation = self.conversation
             if checkIfMessages(messages):
@@ -57,16 +62,50 @@ class Conversation:
                     if messageType == "system":
                         conversation.append(SystemMessage(messages))
                     else:
-                        print("Conversation.addMessage() - WARNING: message type provided does not match ai/human/system, skipping message.")
+                        logger.warning("Conversation.addMessage() - WARNING: message type provided does not match ai/human/system, skipping message.")
             self.conversation = conversation
 
     ## returns last message of conversation
     def lastMessage(self, type = None):
+        logger = self.logger
         if type == None:
             conversation = self.conversation
             return conversation[-1]
         else:
-            print("Conversation.lastMessage(): TODO - ADD THIS FUNCTIONALITY")
+            logger.warning("Conversation.lastMessage(): TODO - ADD THIS FUNCTIONALITY")
+
+    ### returns an array with the last *span* messages of type, returns all types if type == None
+    def lastMessages(self, span, type = None):
+        logger = self.logger
+        output = []
+        if type == None:
+            if span == None:
+                span = conversation.__len__() 
+            conversation = self.conversation
+            for i in range(span):
+                msg = conversation[-(span-i)]
+                output.append(msg) 
+            return output
+        else:
+            if span == None:
+                span = conversation.__len__() 
+            conversation = self.conversation
+            for i in range(span):
+                msg = conversation[-(span-i)]
+                if isinstance(msg, type):
+                    output.append(msg) 
+            return output
+
+    ## returns all messages that have been added to the conversation since the last time this method was called
+    def newMessages(self, type = None, static = False):
+        logger = self.logger
+        lenThen = self.lastNewRequestLen
+        lenNow = self.conversation.__len__()
+        diff = lenNow - lenThen
+        if not static:
+            self.lastNewRequestLen = lenNow
+        return self.lastMessages(diff, type)
+
 
     ## counts messages of type provided in conversation
     def countMessagesOfType(self, type):
@@ -96,15 +135,17 @@ class Conversation:
 
     ## prints out conversation
     def print(self, message = None):
+        logger = self.logger    
         if message:
-            print(message)
+            logger.info(message)
         for msg in self.conversation:
-            print([msg.type, msg.content])
+            logger.info([msg.type, msg.content])
 
     ## logs conversation
     def log(self):
+        logger = self.logger
         for msg in self.conversation:
-            Logger.log([msg.type, msg.content])
+            logger.info([msg.type, msg.content])
 
 ### takes an object and checks if it is one or several messages
 def checkIfMessages(messages):
@@ -121,7 +162,7 @@ def checkIfMessages(messages):
         else:
             flag = "Conversation.checkIfMessages(): WARNING - Provided message is non-message type:" + str(messages)
     if flag:
-        print(flag)
+        logger.info(flag)
         return False
 
 ## counts messages of type in provided conversation, returns None if it is given non-messages

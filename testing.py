@@ -101,6 +101,7 @@ def getDemoUserContext():
 
 #asyncio.run(testing())
 
+"""
 ## initializes a demo conversation between a patient simulation and langdoc
 async def initDemoConversation():
 
@@ -143,6 +144,7 @@ async def initDemoConversation():
        # print("Doctor: "+docReply[-1].content)
         #patientConvo.print("\n\n TESTING COUNTMESSAGE FUNCTION")
         #print("Count:"+str(patientConvo.countMessagesOfType(HumanMessage)))
+"""
 
 def runPatientSimulation(id, vignette):
     try:
@@ -234,9 +236,10 @@ def exampleConversation(i):
         convo.addMessage("Could you summarize the pain in more detail?", "ai")
         convo.addMessage("Yes certainly, it's a kind of diffuse, dull pain everywhere in my head and it's really bad. It gets worse when I lower my head.", "human")
         return convo
+        
 
 def loadVignettes():
-    f = open("vignettes.txt", "r")
+    f = open("vignettes.txt", "r", encoding="utf8")
     contents = f.read()
     vignettes = contents.split("===")
     return vignettes
@@ -248,5 +251,4 @@ if __name__ == '__main__':
     print("INIT")
     langDocBack.initSysMsgs()
     #testSummaryBot(exampleConversation(1))
-    #asyncio.run(initDemoConversation())
-    initVignettesDemo(vignettes)
+    initVignettesDemo([vignettes[1]])

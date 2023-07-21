@@ -4,10 +4,10 @@ import requests
 import discordBack
 import asyncio
 import logging
-
+from discord.ext import commands
 
 logging.basicConfig(level=logging.INFO)
-logger = log_to_stderr()
+logger = logging.getLogger("discordFront")
 
 dev_mode = False
 BOT_TOKEN = "MTEyNzE5ODMwMDgxMTA1NTE0Ng.GBBFKy.c2qJf9v38nr2_nTp2Pum2wGHCc-9CIxI2xNYNI"
@@ -37,11 +37,11 @@ class MyBot(discord.Client):
         logger.info("MESSAGE BY "+str(message.author) + ": " + message.content)
         if message.author == self.user or not message.content:
             return  
-
         
         data = {"message": message.content, "user_id": str(message.author.id), "channel": message.channel}
         
-        response = await discordBack.process_message(self, data)
+        async with message.channel.typing():
+            response = await discordBack.process_message(self, data)
         
         if response:
             for msg in response:
@@ -54,8 +54,7 @@ class MyBot(discord.Client):
 
 client = MyBot(intents=intents)
 
-async def start_bot(loop):
-    client.loop = loop
+async def start_bot():
     await client.start(BOT_TOKEN)
 
 async def getChannelByName(name):

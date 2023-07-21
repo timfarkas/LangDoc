@@ -15,7 +15,8 @@ import logging, traceback
 from collections import defaultdict
 from Conversation import Conversation, isType
 
-chat = ChatOpenAI(temperature=0)
+chat = ChatOpenAI(temperature=0, model_name="gpt-4")
+dev_mode = False
 
 # set this to true before starting langDocBack in CLI to be able to chat with it directly
 commandLineMode = False
@@ -25,7 +26,6 @@ docSysMsg = ""
 bayesSysMsg = ""
 summarySysMsg = ""
 
-logger = logging.getLogger()
 user_contexts = defaultdict(dict)
 summary = None
 docConvo = None
@@ -40,12 +40,16 @@ def initLangDocAPI(user_context, logger = None):
         logger = user_context["logger"]
     except KeyError as e:
         if logger == None: 
-            logger = logging.getLogger()
+            logger = logging.getLogger("langDocBack")
             user_context["logger"] = logger
         else:
             user_context["logger"] = logger
-    logger.info("Initializing LangDocAPI (langDocBack.initLangDocAPI())")
+    if dev_mode:
+        logger.setLevel(logging.DEBUG)      
+    logger.debug("Initializing LangDocAPI (langDocBack.initLangDocAPI())")
     initSysMsgs()
+
+    
     return initDocAgent(user_context)
 
 def initSysMsgs():
@@ -64,9 +68,10 @@ def initSysMsgs():
     For that, you should first think in a structured manner, following the rules of Bayesian clinical thinking, and then generate a list of questions for the doctor. 
     Focus on verbal anamnesis and leave out further diagnostics.  
     Remember the rules of Bayesian clinical thinking: 
-    Step 1: Use epidemiological data such as demographics, environment, sex to construct quantiative priors on what conditions are most likely a priori. Write down your reasoning. If you realise that you do not have certain epidemiological data yet, note it down so you can put it in the questions list later. 
-    Step 2: Use your knowledge of physiology, pathology and pathophysiology (especially symptoms) to determine which kinds of Bayesian evidence would most update your priors on what differential diagnoses are likely, leading to exclusion or promotion of possible diagnoses. Write down your reasoning. 
-    Step 3: Generate a short list of the most important questions based on 1 and 2 which is denoted by \n #### List of Questions. You never include questions that have already been asked or where you already have the data. 
+    Step 1: Use epidemiological data such as demographics, environment, sex to construct priors on what conditions are most likely a priori, giving percentages. Write down your reasoning and think step by step, citing epidemiological empirical data. If you realise that you do not have certain epidemiological data yet, note it down so you can put it in the questions list later. 
+    Step 2: Use your clinical knowledge and knowledge of physiology, pathology, pathophysiology (especially symptoms) to determine which kinds of Bayesian evidence would most update your priors on what differential diagnoses are likely, leading to exclusion or promotion of possible diagnoses. Reference predictive values to arrive at quantitative updates. Write down your reasoning. 
+    Step 3: List the differential diagnoses ordered by their likelihood.  
+    Step 4: Generate a short list of the most important questions based on 1 and 2 which is denoted by \n #### List of Questions. You never include questions that have already been asked or where you already have the data. 
     Let's work out Step 1,2, and 3 in a step by step way to be sure we have the right answer. Don't forget to always output a \n '#### List of Questions' at the end so that the system will properly parse them, and don't include questions that have already been asked.   
     '''
     summarySysMsg = '''You are a clinical assistant AI tasked with helping doctors with patient anamnesis.
@@ -82,7 +87,7 @@ def initSysMsgs():
 # inits doc agent with docSysMsg, generates and returns user_context with user_context["docConvo"] with doc's first greeting message 
 def initDocAgent(user_context):
     logger = user_context["logger"]
-    logger.info("Initializing LangDoc Agent (langDocBack.initDocAgent())")
+    logger.debug("Initializing LangDoc Agent (langDocBack.initDocAgent())")
     docConvo = Conversation(SystemMessage(content=docSysMsg))
     docGreeting = chat(docConvo)
     logger.info("Doctor:"+docGreeting.content+"(langDocBack.initDocAgent())")
@@ -94,12 +99,15 @@ def initDocAgent(user_context):
     # initializes user_context entry in global variable user_contexts using user_id as the key 
     # and copying the user context passed from outside
     # user_contexts[user_context["user_id"]] = user_context
+    user_context["newMsgs"] = user_context["docConvo"].newMessages(type = AIMessage)
+
     return user_context
 
 # generates the doctor's response to a user's first replies
 # takes user context and initialMessages
 def initPatientConvo(initialMessages, user_context):
-    logger.info("Initializing doc's response to first user replies (langDocBack.initPatientConvo())")
+    logger = user_context["logger"]
+    logger.debug("langDocBack.initPatientConvo()")
 
     user_id = user_context["user_id"]
     docConvo = user_context["docConvo"]
@@ -111,31 +119,35 @@ def initPatientConvo(initialMessages, user_context):
 
     if initialMessages:
         docConvo.addMessage(initialMessages, "human")
+        logger.info("Initializing doc's response to first user replies (langDocBack.initPatientConvo())")
         docResponse = chat(docConvo)
         logger.info("Doctor: "+docResponse.content+"(initPatientConvo())")
         docConvo.addMessage(AIMessage(content=docResponse.content))
+        ## generate a first summary
+        summary = summarizeData(user_context)
+        user_context["summary"] = summary
     else:
         docResponse = AIMessage(content="To get started, could you please provide your age, sex, ethnicity and country of residence?")
         docConvo.addMessage(docResponse)
+        user_context["summary"] = "No information yet."
     user_context["docConvo"] = docConvo
+    user_context["newMsgs"] = user_context["docConvo"].newMessages()
     
-    ## generate a first summary
-    summary = summarizeData(user_context)
-    user_context["summary"] = summary
     return user_context
 
 # takes a user's reply and processes it, returning user_context with user_context["docConvo"] with added reply from doc 
 def processResponse(patientMessage, user_context):
     logger = user_context["logger"]
+    logger.debug("langDocBack.processResponse()")
     ## appends patient message to convo
     patientMsg = HumanMessage(content=patientMessage)
     user_context["docConvo"].addMessage(patientMsg)
     docConvo = user_context["docConvo"]
 
-    # updates summary using last two messages by doc and patient
+    # updates summary using last four messages by doc and patient
     if user_context["summary"]:
         summary = user_context["summary"]
-    summary = updateSummary(user_context, 2)
+    summary = updateSummary(user_context, 4)
     user_context["summary"] = summary
 
     # generates advice from bayesian agent to inform next question and advises doc on it
@@ -154,6 +166,7 @@ def processResponse(patientMessage, user_context):
             user_context = auditConvo(user_context)
             if user_context["auditAdvice"]:
                 logger.info("Audit Advice: "+user_context["auditAdvice"])
+                user_context = passAuditAdvice(user_context)
         else:
             lastAudit = lastAudit + 1
     user_context["lastAudit"] = lastAudit
@@ -166,14 +179,24 @@ def processResponse(patientMessage, user_context):
     logger.info("processResponse() - Doctor: "+docResponse.content)
     docConvo.addMessage(AIMessage(content=docResponse.content))
 
+    user_context["newMsgs"] = docConvo.newMessages(type = AIMessage)
     user_context["docConvo"] = docConvo
-    
-    
+
     return user_context
 
+# propagates audit advice to the discord frontend
+def passAuditAdvice(user_context):
+    logger = user_context["logger"]
+    logger.debug("langDocBack.passAuditAdvice()")
+    user_context["docConvo"].addMessage("*Analyzing our conversation so far, here's my assessment for now:*", "ai")
+    user_context["docConvo"].addMessage("**"+user_context["auditAdvice"]+"**", "ai")
+    user_context["docConvo"].addMessage("*You may continue to refine this assessment by continuing to answer further questions.*", "ai")
+    return user_context
 
 # asks a summary agent to look at the conversation history in the user_context and an optional previous summaries and outputs an (updated) summary of the conversation as a string
 def summarizeData(user_context):
+    logger = user_context["logger"]
+    logger.debug("langDocBack.summarizeData()")
     updateSummary(user_context)
 
     """
@@ -206,17 +229,20 @@ def summarizeData(user_context):
 #  an updated summary using the previous summary and the previous two messages in convo 
 ## if span = None, it looks at the whole conversation
 def updateSummary(user_context, span = None):
+    logger = user_context["logger"]
+    logger.debug("langDocBack.updateSummary()")
     try:
         summary = user_context["summary"]
     except KeyError as e:
+        logger.warning("Found no summary in user context, creating initial one.")    
+        summaryInit = True
         user_context["summary"] = None
         summary = None
 
-    logger = user_context["logger"]
     convo = user_context["docConvo"].stripSystemMessages()
     if span == None:
         span = convo.__len__()
-
+    
 
     global summarySysMsg
     summarySysMsg = summarySysMsg + "\nSummary of the conversation so far:"
@@ -258,8 +284,9 @@ def updateSummary(user_context, span = None):
 
 def planNextQuestion(user_context): 
     logger = user_context["logger"]
+    logger.debug("langDocBack.planNextQuestion()")
     summary = user_context["summary"]
-    if summary and len(summary)>150:
+    if summary and len(summary)>200:
         bayesConvo=Conversation(SystemMessage(content=bayesSysMsg))
         bayesConvo.addMessage(HumanMessage(content=summary))
         reply = chat(bayesConvo).content
@@ -273,6 +300,7 @@ def planNextQuestion(user_context):
 ### takes user_context with bayesAdvice and auditAdvice, returns user_context with system messages for the doc
 def adviseDoc(user_context):
     logger = user_context["logger"]
+    logger.debug("langDocBack.adviseDoc()")
     docConvo = user_context["docConvo"]
     bayesAdvice = user_context["bayesAdvice"]
     auditAdvice = user_context["auditAdvice"]
@@ -280,6 +308,7 @@ def adviseDoc(user_context):
     if bayesAdvice and bayesAdvice.content.__contains__('#### List of Questions'):
         questions = bayesAdvice.content.split('#### List of Questions')[1]
         bayesMsg = SystemMessage(content=("The Doctor AI requests you to prioritize asking one of these questions next, if you have not asked them before:"+questions))
+        ## TODO add logic so that this message is not only appended but that the old bayes msg gets deleted 
         docConvo.addMessage(bayesMsg)
         user_context["docConvo"] = docConvo
     else: 
@@ -287,26 +316,28 @@ def adviseDoc(user_context):
         docConvo.addMessage(bayesMsg)
         user_context["docConvo"] = docConvo
 
+    """
     if auditAdvice:
-        docConvo.addMessage("The Doctor AI requests you to also take this advice to the patient into account, especially if it seems urgent: "+auditAdvice, "system")
+        docConvo.addMessage("The Doctor AI requests you to also take this advice to the patient into account, especially if it constitutes an emergency: '"+auditAdvice+"'\n If it is not an emergency, you should continue the conversation.", "system")
         #logger.info("The Doctor AI requests you to also take this advice to the patient into account, which may be urgent: "+auditAdvice+"(langDocBack.adviseDoc())")
-
+    """
     return user_context
 
 # takes user context with bayesAdvice and summary and audits it to look for exit criteria
 # returns 
 def auditConvo(user_context):
     logger = user_context["logger"]
+    logger.debug("langDocBack.auditConvo()")
     bayesAdvice = user_context["bayesAdvice"]
     summary = user_context["summary"]
     diagnoses = None
-    if bayesAdvice and (bayesAdvice.content.__contains__('#### List of Questions') or bayesAdvice.content.__contains__('Step 3: List of Questions')) and bayesAdvice.content.__contains__("Step 2:"):
+    if bayesAdvice and (bayesAdvice.content.__contains__('#### List of Questions') or bayesAdvice.content.__contains__('Step 4: List of Questions')) and bayesAdvice.content.__contains__("Step 2:"):
         try:
-            diagnoses = user_context["bayesAdvice"].content.split('Step 2:')[1]
+            diagnoses = user_context["bayesAdvice"].content.split('Step 3:')[1]
             if bayesAdvice.content.__contains__('#### List of Questions'):
                 diagnoses = diagnoses.split('#### List of Questions')[0]  
             else:
-                diagnoses = diagnoses.split('Step 3: List of Questions')[0]
+                diagnoses = diagnoses.split('Step 4: List of Questions')[0]
         except:
             logger.info("ERROR (langDocBack.auditConvo())")
 
@@ -314,7 +345,7 @@ def auditConvo(user_context):
     You are a medical triaging agent tasked with carefully and accurately evaluating whether a patient should call an ambulance, or seek out the emergency room.
     You will receive a medical summary of a patient's symptoms and history along with information on most likely differential diagnoses.
     You will then reason about the case being an emergency. Think step by step.
-    Conclude your reasoning with "### ADVICE" followed by the advice that should be shown to the patient. If the case is not an emergency, just give advice about the medical problem that the patient could be experiencing.
+    Conclude your reasoning with "### ADVICE" followed by the advice that should be shown to the patient, where you include the information on which conditions are likely. If the case is not an emergency, just give advice about the medical problem that the patient could be experiencing.
     """
     
     auditConvo = Conversation(SystemMessage(content=auditSysMsg))

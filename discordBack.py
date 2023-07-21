@@ -7,16 +7,18 @@ import logging
 from Conversation import Conversation
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+
 
 
 api_key = None
 dev_mode = False
 command_word = "!langdoc"
 
+logger = logging.getLogger("discordBack")
 if dev_mode == True:
     command_word = "!dev"
-    logging.basicConfig(level=logging.DEBUG)
+    logger.setLevel(logging.DEBUG)
+
 
 user_contexts = defaultdict(dict)
 
@@ -24,7 +26,7 @@ def get_dev_mode():
     return dev_mode
 
 async def generateResponse(bot, data) -> str:
-        # logger.debug("generateResponse")
+        logger.debug("discordBack.generateResponse()")
         message = data['message'] 
         user_id = data['user_id']
         channel = data['channel']
@@ -36,7 +38,7 @@ async def generateResponse(bot, data) -> str:
         user_context["user_id"] = user_id
         user_context["api_key"] = api_key
         user_context["responses"] = responses
-
+        
         """
         # API KEY RETRIEVAL LOGIC
         api_key = user_context.get("api_key")
@@ -78,11 +80,11 @@ async def generateResponse(bot, data) -> str:
                     logger.debug("initial Text is being sent to openai here:" + inputMessage)
                     await bot.typeFlag(channel) 
                     user_context = initPatientConvo(inputMessage, user_context)
-                    user_context["responses"].append(user_context["docConvo"].lastMessage().content)
+                    user_context["responses"].append(user_context["newMsgs"][-1].content)
                 else:
                     await bot.typeFlag(channel) 
                     user_context = initPatientConvo(None, user_context)
-                    user_context["responses"].append(user_context["docConvo"].lastMessage().content)
+                    user_context["responses"].append(user_context["newMsgs"][-1].content)
                 return user_context["responses"]
         else:
             logger.debug("LangDoc is running.")
@@ -97,9 +99,9 @@ async def generateResponse(bot, data) -> str:
                     return user_context["responses"]
             inputMessage = message
             logger.debug("input message:"+inputMessage)
-            await bot.typeFlag(channel) 
-            response = processResponse(inputMessage, user_context)["docConvo"].lastMessage().content
-            user_context["responses"].append(response)        
+            response = processResponse(inputMessage, user_context)["newMsgs"]
+            for msg in response:
+                user_context["responses"].append(msg.content)
             return user_context["responses"]
 
 # inits LangDocAPI and gets first answer
@@ -116,15 +118,15 @@ def init(data, user_context):
             user_context["running"] = True 
             message = data['message']
             # HERE
-            response = initLangDocAPI(user_context)
-            return response["docConvo"][-1]   
+            response = initLangDocAPI(user_context)["newMsgs"][-1]
+            return response   
         else: 
             generateResponse(data)
 
 async def sendCustomMessage(channel,message):
     await discordFront.sendCustomMessages(channel, [message])
 
-async def start_bot(loop):
+async def start_bot():
     # Add any necessary startup code here
     pass
 

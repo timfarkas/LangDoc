@@ -15,11 +15,10 @@ app = FastAPI()
 @app.on_event("startup")
 async def startup():
     logger.info("Starting up...")  
-    loop = asyncio.get_event_loop()
 
     # Start your discordfront.py and discordback.py scripts
-    asyncio.ensure_future(discordFront.start_bot(loop), loop=loop)
-    asyncio.ensure_future(discordBack.start_bot(loop), loop=loop)
+    asyncio.ensure_future(discordFront.start_bot())
+    asyncio.ensure_future(discordBack.start_bot())
 
 
 if __name__ == "__main__":
