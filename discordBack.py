@@ -78,10 +78,12 @@ async def generateResponse(bot, data) -> str:
                 inputMessage = message[len(command_word+" "):]
                 if len(inputMessage) > 3:
                     logger.debug("initial Text is being sent to openai here:" + inputMessage) 
-                    user_context = initPatientConvo(inputMessage, user_context)
+                    async with channel.typing():
+                        user_context = initPatientConvo(inputMessage, user_context)
                     user_context["responses"].append(user_context["newMsgs"][-1].content)
                 else:
-                    user_context = initPatientConvo(None, user_context)
+                    async with channel.typing():
+                        user_context = initPatientConvo(None, user_context)
                     user_context["responses"].append(user_context["newMsgs"][-1].content)
                 return user_context["responses"]
         else:
