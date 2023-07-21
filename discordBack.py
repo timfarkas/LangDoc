@@ -77,12 +77,10 @@ async def generateResponse(bot, data) -> str:
                 # save text after !LangDoc and send it to openai if long enough
                 inputMessage = message[len(command_word+" "):]
                 if len(inputMessage) > 3:
-                    logger.debug("initial Text is being sent to openai here:" + inputMessage)
-                    await bot.typeFlag(channel) 
+                    logger.debug("initial Text is being sent to openai here:" + inputMessage) 
                     user_context = initPatientConvo(inputMessage, user_context)
                     user_context["responses"].append(user_context["newMsgs"][-1].content)
                 else:
-                    await bot.typeFlag(channel) 
                     user_context = initPatientConvo(None, user_context)
                     user_context["responses"].append(user_context["newMsgs"][-1].content)
                 return user_context["responses"]
@@ -99,7 +97,8 @@ async def generateResponse(bot, data) -> str:
                     return user_context["responses"]
             inputMessage = message
             logger.debug("input message:"+inputMessage)
-            response = processResponse(inputMessage, user_context)["newMsgs"]
+            async with channel.typing():
+                response = processResponse(inputMessage, user_context)["newMsgs"]
             for msg in response:
                 user_context["responses"].append(msg.content)
             return user_context["responses"]

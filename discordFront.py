@@ -40,8 +40,7 @@ class MyBot(discord.Client):
         
         data = {"message": message.content, "user_id": str(message.author.id), "channel": message.channel}
         
-        async with message.channel.typing():
-            response = await discordBack.process_message(self, data)
+        response = await discordBack.process_message(self, data)
         
         if response:
             for msg in response:
