@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 api_key = None
-dev_mode = False
+dev_mode = True
 command_word = "!langdoc"
 
 logger = logging.getLogger("discordBack")
@@ -71,9 +71,15 @@ async def generateResponse(bot, data) -> str:
                 user_context["running"] = True
                 user_contexts[user_id] = user_context
 
+                user_context["responses"].append(
+"""*LangDoc is a symptom checker chat bot, that will walk you through a number of questions about your symptoms to determine most likely diagnoses. 
+After a few messages, it will share its first assessment, and give you advice about appropriate next steps. You may choose to continue the conversation to further refine diagnoses.
+You can use '"""+command_word+""" quit' to quit LangDoc.*""")
+                user_context["responses"].append("""*LangDoc Alpha is very early stage and should only be used for testing purposes. Please do not share medical data that you wish to keep private.*""")                
                 user_context["responses"].append(assistantMessage.replace("Anna Johns", "LangDoc"))
-                user_context["responses"].append("You can use '"+command_word+" quit' to quit LangDoc.")
+
                 
+
                 # save text after !LangDoc and send it to openai if long enough
                 inputMessage = message[len(command_word+" "):]
                 if len(inputMessage) > 3:
