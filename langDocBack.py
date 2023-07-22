@@ -113,10 +113,13 @@ def initPatientConvo(initialMessages, user_context):
     user_id = user_context["user_id"]
     docConvo = user_context["docConvo"]
     user_context["summary"] = None
-    user_context["bayesAdvice"] = None
-    user_context["lastAudit"] = None
-    user_context["auditAdvice"] = None
     user_context["lastSummary"] = None
+    user_context["bayesAdvice"] = None
+    user_context["diagnoses"] = None
+    user_context["lastAudit"] = None
+    user_context["auditCount"] = 0
+    user_context["auditAdvice"] = None
+
 
     if initialMessages:
         docConvo.addMessage(initialMessages, "human")
@@ -155,6 +158,8 @@ def processResponse(patientMessage, user_context):
     bayesResponse = planNextQuestion(user_context)
     user_context["bayesAdvice"] = bayesResponse
     
+    ## update user context to include exctracted diagnoses based on bayesAdvice
+    user_context = generateDiagnoses(user_context)
 
     # audit logic
     global auditTime
@@ -167,6 +172,7 @@ def processResponse(patientMessage, user_context):
             user_context = auditConvo(user_context)
             if user_context["auditAdvice"]:
                 logger.info("Audit Advice: "+user_context["auditAdvice"])
+                user_context["auditCount"] =+ 1
                 user_context = passAuditAdvice(user_context)
         else:
             lastAudit = lastAudit + 1
@@ -185,13 +191,29 @@ def processResponse(patientMessage, user_context):
 
     return user_context
 
-# propagates audit advice to the discord frontend
+# takes user_context, looks at user_context["bayesAdvice"] and extracts diagnoses from it, adding them to user_context["diagnoses"]
+def generateDiagnoses(user_context):
+    bayesAdvice = user_context["bayesAdvice"]
+    diagnoses = None
+    if bayesAdvice and (bayesAdvice.content.__contains__('#### List of Questions') or bayesAdvice.content.__contains__('Step 4: List of Questions')) and bayesAdvice.content.__contains__("Step 2:"):
+        try:
+            diagnoses = user_context["bayesAdvice"].content.split('Step 3:')[1]
+            if bayesAdvice.content.__contains__('#### List of Questions'):
+                diagnoses = diagnoses.split('#### List of Questions')[0]  
+            else:
+                diagnoses = diagnoses.split('Step 4: List of Questions')[0]
+        except:
+            logger.info("ERROR (langDocBack.auditConvo())")
+    user_context["diagnoses"] = diagnoses
+    return user_context
+
+# propagates audit advice into the doc response
 def passAuditAdvice(user_context):
     logger = user_context["logger"]
     logger.debug("langDocBack.passAuditAdvice()")
     user_context["docConvo"].addMessage("*Analyzing our conversation so far, here's my assessment for now:*", "ai")
     user_context["docConvo"].addMessage("**"+user_context["auditAdvice"]+"**", "ai")
-    user_context["docConvo"].addMessage("*You may continue to refine this assessment by continuing to answer further questions.*", "ai")
+    user_context["docConvo"].addMessage("*You may continue to refine this assessment by continuing to answer further questions. You can also use !langdoc quit, to quit LangDoc.    *", "ai")
     return user_context
 
 # asks a summary agent to look at the conversation history in the user_context and an optional previous summaries and outputs an (updated) summary of the conversation as a string
@@ -277,7 +299,7 @@ def updateSummary(user_context, span = None):
     newSummary = chat3(pastConvo)
     if not summary or len(newSummary.content)>len(summary)/2:
         summary = newSummary.content
-    logger.info("--- SUMMARY OF " + str(user_context["user_id"]) + "---\n"+summary)
+    logger.info(str(user_context["user_id"])+"### SUMMARY \n"+summary)
     return summary
 
 
@@ -293,7 +315,7 @@ def planNextQuestion(user_context):
         bayesConvo.addMessage(HumanMessage(content=summary))
         reply = chat4(bayesConvo).content
         bayesResponse = SystemMessage(content=reply)
-        logger.info("--- BAYESIAN ADVICE ---\n"+ bayesResponse.content)
+        logger.info(str(user_context["user_id"])+"### BAYESIAN ADVICE\n"+ bayesResponse.content)
         return bayesResponse
     else:
         return None
@@ -332,22 +354,15 @@ def auditConvo(user_context):
     logger.debug("langDocBack.auditConvo()")
     bayesAdvice = user_context["bayesAdvice"]
     summary = user_context["summary"]
-    diagnoses = None
-    if bayesAdvice and (bayesAdvice.content.__contains__('#### List of Questions') or bayesAdvice.content.__contains__('Step 4: List of Questions')) and bayesAdvice.content.__contains__("Step 2:"):
-        try:
-            diagnoses = user_context["bayesAdvice"].content.split('Step 3:')[1]
-            if bayesAdvice.content.__contains__('#### List of Questions'):
-                diagnoses = diagnoses.split('#### List of Questions')[0]  
-            else:
-                diagnoses = diagnoses.split('Step 4: List of Questions')[0]
-        except:
-            logger.info("ERROR (langDocBack.auditConvo())")
+    
+    if user_context["diagnoses"]:
+        diagnoses = user_context["diagnoses"]
 
     auditSysMsg =  """
     You are a medical triaging agent tasked with carefully and accurately evaluating whether a patient should call an ambulance, or seek out the emergency room.
     You will receive a medical summary of a patient's symptoms and history along with information on most likely differential diagnoses.
     You will then reason about the case being an emergency. Think step by step.
-    Conclude your reasoning with "### ADVICE" followed by the advice that should be shown to the patient, where you include the information on which conditions are likely. If the case is not an emergency, just give advice about the medical problem that the patient could be experiencing.
+    Conclude your reasoning with "#### ADVICE" followed by the advice that should be shown to the patient, where you include the information on which conditions are likely. If the case is not an emergency, just give advice about the medical problem that the patient could be experiencing.
     """
     
     auditConvo = Conversation(SystemMessage(content=auditSysMsg))
@@ -366,17 +381,17 @@ def auditConvo(user_context):
         auditConvo.addMessage("Sorry, I don't have the diagnoses yet.","human")
     
 
-    auditConvo.addMessage("""Now, please reason about what kind of help the patient should seek, thinking step by step. Be sure to conclude your reasoning with "### ADVICE" followed by the advice that should be shown to the patient.""","system")
+    auditConvo.addMessage("""Now, please reason about what kind of help the patient should seek, thinking step by step. Be sure to conclude your reasoning with "#### ADVICE" followed by the advice that should be shown to the patient.""","system")
     
     audit = chat4(auditConvo)
     audit = audit.content
 
-    logger.info("--- AUDIT OF " + str(user_context["user_id"]) + "---\n"+audit)
-    if audit.__contains__('### ADVICE'):
-        logger.info("AUDIT CONTAINS ADVICE; SPLITTING")
-        audit = audit.split('### ADVICE')   
+    logger.info(str(user_context["user_id"])+"###AUDIT\n"+audit)
+    if audit.__contains__('#### ADVICE'):
+        #logger.debug("AUDIT CONTAINS ADVICE; SPLITTING")
+        audit = audit.split('#### ADVICE')   
         user_context["auditAdvice"] = audit[1]
-        logger.info("ADVICE SPLIT: "+user_context["auditAdvice"]+"(auditConvo)")
+        logger.info(str(user_context["user_id"])+"#### ADVICE:"+user_context["auditAdvice"])
     else:
         logger.info("NO ADVICE GENERATED (auditConvo)")
         user_context["auditAdvice"] = None

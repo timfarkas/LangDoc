@@ -1,5 +1,6 @@
 import asyncio
 import logging, os
+import sys
 import discordBack, discordFront, langDocBack
 from Conversation import Conversation, BotMessage, UserMessage, SystemMessage
 from collections import defaultdict
@@ -38,7 +39,7 @@ async def initPatientSimulation(id, inputMessages, patientSpecification = None, 
     You are PatientGPT, designed to simulate patients as realistically as possible for med students and doctors to practice their anamnesis skills.
     Today, you will play the following patient:"""+ patientSimulation["patientSpecification"] +""".
     As the medics are asking you questions, make up realistic symptoms, patient history and do a good job of providing a realistic patient anamnesis experience. This means that you sometimes tell irrelevant information and sometimes don't share information unless explicitly asked.
-    Keep in mind that you should only ever simulate the responses of the patient and let the students/doctors ask the questions. 
+    You use easy, lay-man language. Keep in mind that you should only ever simulate the responses of the patient and let the students/doctors ask the questions. 
     The next thing the patient says is:
     """
 
@@ -60,12 +61,12 @@ def generatePatientAnswer(patientSimulation):
     ## fetches patientConvo based on id
     
     patientConvo = patientSimulation["patientConvo"]
-
+    logger = patientSimulation["logger"]
     # generates patient response based on patientConvo and updates patientConvo
     #print("testing.generatePatientAnswer() - patientConvo:")
     #print(patientConvo)
     patientResponse = chat(patientConvo)
-    print("Patient:"+patientResponse.content + "(testing.generatePatientAnswer())")
+    logger.info("Patient:"+patientResponse.content + "(testing.generatePatientAnswer())")
     patientConvo.addMessage(patientResponse)
 
     patientSimulation["patientConvo"] = patientConvo
@@ -89,10 +90,10 @@ def getLogger(type = "terminal", id = "NAN"):
     logger.setLevel(logging.INFO)
     return logger
 
-def getDemoUserContext():
+def getDemoUserContext(id="demoConversation"):
     testDict = defaultdict(dict)
-    user_context=testDict["demoConversation"]
-    user_context["user_id"]="demoConversation"
+    user_context=testDict[id]
+    user_context["user_id"]=id
     return user_context
 
 #discordFront.testing()
@@ -149,7 +150,7 @@ async def initDemoConversation():
 def runPatientSimulation(id, vignette):
     try:
         logger = getLogger("file", id)
-        user_context = getDemoUserContext()   
+        user_context = getDemoUserContext(id)   
         user_context["logger"] = logger
 
         # initializes langdoc api and first doc messages and prints them, flips roles of generated answers so that patient AI thinks that the doc AI's messages are coming from the user
@@ -173,27 +174,49 @@ def runPatientSimulation(id, vignette):
         docAnswer = Conversation(langDocBack.initPatientConvo(patientConvo.lastMessage().content, user_context)["docConvo"])
         patientConvo.addMessage(UserMessage(docAnswer.lastMessage().content))
         patientSimulation["patientConvo"] = patientConvo
+        patientSimulation["logger"] = logger
         user_context = patientSimulation["user_context"]
         while True:
                 patientSimulation = generatePatientAnswer(patientSimulation)
                 patientConvo = patientSimulation["patientConvo"]
-                docreply = langDocBack.processResponse(patientConvo[-1].content, user_context)
-                patientSimulation["patientConvo"].addMessage(UserMessage(docreply["docConvo"].lastMessage().content)) 
+                user_context = langDocBack.processResponse(patientConvo[-1].content, user_context)
+                docreply = user_context["docConvo"].lastMessage().content
+                patientSimulation["patientConvo"].addMessage(UserMessage(docreply)) 
+
+                if user_context["auditCount"] > 2:
+                    logger.info("\n\n!!!AUDIT COUNT OVER TWO, ENDING CONVERSATION!!!")
+                    logger.info("#### DIAGNOSES\n"+ user_context["diagnoses"]+"\n")
+                    logger.info("#### ADVICE\n"+ user_context["auditAdvice"])
+                    break
                 # logger.info("Doctor: "+docReply[-1].content)
                 # patientConvo.logger.info("\n\n TESTING COUNTMESSAGE FUNCTION")
                 # logger.info("Count:"+str(patientConvo.countMessagesOfType(HumanMessage)))
+        endPatientSimulation(id)
+        return None
     except Exception as e:
         logger = logging.getLogger(str(current_process().pid)) 
         logger.error(f"An error occurred: {e}")
 
+def endPatientSimulation(id):
+    return
+    #sys.exit()
+
 ## initializes a demo conversation between a patient simulation and langdoc
 def initVignettesDemo(vignettes):
-    with Pool() as p:
+    p = Pool()
+    try:
         logger = logging.getLogger()
         logger.info("Initializing "+ str(len(vignettes))+ " vignettes. (testing.initVignettesDemo())")        
         id_vignette_pairs = [(i+1, v) for i, v in enumerate(vignettes)]
         result = p.starmap(runPatientSimulation, id_vignette_pairs)
-        result.get()
+    except KeyboardInterrupt:
+        logger.warning("\nReceived keyboard interrupt. Shutting down pool.")
+        p.terminate()
+        p.join()
+        sys.exit(1)
+    finally:
+        p.close()
+        p.join()
     # initializes patient simulations
     
     """
@@ -251,4 +274,4 @@ if __name__ == '__main__':
     print("INIT")
     langDocBack.initSysMsgs()
     #testSummaryBot(exampleConversation(1))
-    initVignettesDemo([vignettes[1]])
+    initVignettesDemo(vignettes)

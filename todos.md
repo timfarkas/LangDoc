@@ -8,7 +8,7 @@
     - [ ] hallucination statistics
         - [ ] hundred summaries, how many hallucinations?
 - [ ] more dynamic summarization, advising and auditing
-    - [ ] first summary only after four messages
+    - [X] first summary only after four messages
 - [X] utilize different gpt models for different sub agents
 - [X] fixed typing indicator
 
