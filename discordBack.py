@@ -2,7 +2,6 @@
 from langDocBack import initLangDocAPI, initPatientConvo, processResponse
 from collections import defaultdict
 import asyncio
-import discordFront
 import logging
 from Conversation import Conversation
 
@@ -11,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 api_key = None
-dev_mode = False
+dev_mode = True
 command_word = "!langdoc"
 
 logger = logging.getLogger("discordBack")
@@ -36,6 +35,7 @@ async def generateResponse(bot, data) -> str:
         api_key = "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"
         responses = []
         user_context["user_id"] = user_id
+        user_context["logger"] = logger
         user_context["api_key"] = api_key
         user_context["responses"] = responses
         
@@ -83,13 +83,14 @@ You can use '"""+command_word+""" quit' to quit LangDoc.*""")
                 # save text after !LangDoc and send it to openai if long enough
                 inputMessage = message[len(command_word+" "):]
                 if len(inputMessage) > 3:
-                    logger.debug("initial Text is being sent to openai here:" + inputMessage) 
-                    async with channel.typing():
-                        user_context = initPatientConvo(inputMessage, user_context)
+                    logger.debug("initial Text is being sent to openai here:" + inputMessage+" (discordBack.generateResponse())") 
+                    # TYPING
+                    user_context = await initPatientConvo(inputMessage, user_context)
                     user_context["responses"].append(user_context["newMsgs"][-1].content)
                 else:
-                    async with channel.typing():
-                        user_context = initPatientConvo(None, user_context)
+                    # TYPING
+                    logger.debug("calling initPatientConvo() (discordBack.generateResponse())")
+                    user_context = await initPatientConvo(None, user_context)
                     user_context["responses"].append(user_context["newMsgs"][-1].content)
                 return user_context["responses"]
         else:
@@ -105,8 +106,9 @@ You can use '"""+command_word+""" quit' to quit LangDoc.*""")
                     return user_context["responses"]
             inputMessage = message
             logger.debug("input message:"+inputMessage)
-            async with channel.typing():
-                response = processResponse(inputMessage, user_context)["newMsgs"]
+            # TYPING
+            logger.debug("calling langDocBack.processResponse() (discordBack.generateResponse())")
+            response = (await processResponse(inputMessage, user_context))["newMsgs"]
             for msg in response:
                 user_context["responses"].append(msg.content)
             return user_context["responses"]
@@ -129,9 +131,6 @@ def init(data, user_context):
             return response   
         else: 
             generateResponse(data)
-
-async def sendCustomMessage(channel,message):
-    await discordFront.sendCustomMessages(channel, [message])
 
 async def start_bot():
     # Add any necessary startup code here

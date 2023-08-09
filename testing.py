@@ -203,7 +203,7 @@ def endPatientSimulation(id):
 
 ## initializes a demo conversation between a patient simulation and langdoc
 def initVignettesDemo(vignettes):
-    p = Pool()
+    p = Pool(processes=36)
     try:
         logger = logging.getLogger()
         logger.info("Initializing "+ str(len(vignettes))+ " vignettes. (testing.initVignettesDemo())")        

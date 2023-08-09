@@ -73,7 +73,7 @@ def initSysMsgs():
     Step 2: Use your clinical knowledge and knowledge of physiology, pathology, pathophysiology (especially symptoms) to determine which kinds of Bayesian evidence would most update your priors on what differential diagnoses are likely, leading to exclusion or promotion of possible diagnoses. Reference predictive values to arrive at quantitative updates. Write down your reasoning. 
     Step 3: List the differential diagnoses ordered by their likelihood.  
     Step 4: Generate a short list of the most important questions based on 1 and 2 which is denoted by \n #### List of Questions. You never include questions that have already been asked or where you already have the data. 
-    Let's work out Step 1,2, and 3 in a step by step way to be sure we have the right answer. Don't forget to always output a \n '#### List of Questions' at the end so that the system will properly parse them, and don't include questions that have already been asked.   
+    Let's work out Step 1,2, and 3 in a step by step way to be sure we have the right answer. Don't forget to always output a \n '#### List of Questions' at the end so that the system will properly parse them, and don't include questions that have already been asked. Inclued references only when asked specifically.  
     '''
     summarySysMsg = '''You are a clinical assistant AI tasked with helping doctors with patient anamnesis.
     Your job is to go through the past conversation and output a concise, comprehensive, and formatted overview of their demographics, symptoms, and all relevant data in a bullet point format, ordered by relevance and categorized in a meaningful way. Make sure that you are not missing anything! 
@@ -106,7 +106,7 @@ def initDocAgent(user_context):
 
 # generates the doctor's response to a user's first replies
 # takes user context and initialMessages
-def initPatientConvo(initialMessages, user_context):
+async def initPatientConvo(initialMessages, user_context):
     logger = user_context["logger"]
     logger.debug("langDocBack.initPatientConvo()")
 
@@ -124,7 +124,7 @@ def initPatientConvo(initialMessages, user_context):
     if initialMessages:
         docConvo.addMessage(initialMessages, "human")
         logger.info("Initializing doc's response to first user replies (langDocBack.initPatientConvo())")
-        docResponse = chat3(docConvo)
+        docResponse = await chat3(docConvo)
         logger.info("Doctor: "+docResponse.content+"(initPatientConvo())")
         docConvo.addMessage(AIMessage(content=docResponse.content))
         ## generate a first summary
@@ -140,7 +140,7 @@ def initPatientConvo(initialMessages, user_context):
     return user_context
 
 # takes a user's reply and processes it, returning user_context with user_context["docConvo"] with added reply from doc 
-def processResponse(patientMessage, user_context):
+async def processResponse(patientMessage, user_context):
     logger = user_context["logger"]
     logger.debug("langDocBack.processResponse()")
     ## appends patient message to convo
@@ -154,8 +154,9 @@ def processResponse(patientMessage, user_context):
     summary = updateSummary(user_context, 4)
     user_context["summary"] = summary
 
+    
     # generates advice from bayesian agent to inform next question and advises doc on it
-    bayesResponse = planNextQuestion(user_context)
+    bayesResponse = await planNextQuestion(user_context)
     user_context["bayesAdvice"] = bayesResponse
     
     ## update user context to include exctracted diagnoses based on bayesAdvice
@@ -306,14 +307,14 @@ def updateSummary(user_context, span = None):
 # initializes a bayesian agent who gets a summary string of the conversation and then plans the next question, 
 # outputting a system message instruction
 
-def planNextQuestion(user_context): 
+async def planNextQuestion(user_context): 
     logger = user_context["logger"]
     logger.debug("langDocBack.planNextQuestion()")
     summary = user_context["summary"]
     if summary and (len(summary)>200 or user_context["docConvo"].__len__()>8):
         bayesConvo=Conversation(SystemMessage(content=bayesSysMsg))
         bayesConvo.addMessage(HumanMessage(content=summary))
-        reply = chat4(bayesConvo).content
+        reply = (await chat3(bayesConvo)).content
         bayesResponse = SystemMessage(content=reply)
         logger.info(str(user_context["user_id"])+"### BAYESIAN ADVICE\n"+ bayesResponse.content)
         return bayesResponse

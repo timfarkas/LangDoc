@@ -6,10 +6,10 @@ import asyncio
 import logging
 from discord.ext import commands
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("discordFront")
 
-dev_mode = False
+dev_mode = True
 BOT_TOKEN = "MTEyNzE5ODMwMDgxMTA1NTE0Ng.GBBFKy.c2qJf9v38nr2_nTp2Pum2wGHCc-9CIxI2xNYNI"
 
 if dev_mode == True:
@@ -37,19 +37,29 @@ class MyBot(discord.Client):
         logger.info("MESSAGE BY "+str(message.author) + ": " + message.content)
         if message.author == self.user or not message.content:
             return  
+        asyncio.create_task(self.process_and_sendMsg(message, logger))
+        print("TEST")
         
+    async def keep_typing(self, channel, logger = logging.getLogger()):
+        return
+        #while True:
+         #   logger.info("TEST, TSPIGNGNNG")
+            #await channel.typing()
+            #await asyncio.sleep(5)  # wait for a shorter duration than 10 seconds to ensure the typing indication doesn't expire
+
+    async def process_and_sendMsg(self, message, logger):
         data = {"message": message.content, "user_id": str(message.author.id), "channel": message.channel}
-        
-        response = await discordBack.process_message(self, data)
-        
+        typing_task = asyncio.create_task(self.keep_typing(data["channel"], logger))
+        try:
+            response = await discordBack.process_message(self, data)
+        finally:
+            typing_task.cancel() 
         if response:
             for msg in response:
                 await message.channel.send(msg)
         else:
             logger.info("No response generated.")
 
-    async def typeFlag(self, channel):
-        await channel.typing()
 
 client = MyBot(intents=intents)
 
