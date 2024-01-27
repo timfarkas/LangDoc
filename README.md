@@ -56,9 +56,17 @@ By default, it currently uses sub-agents driven by OpenAI foundation models (GPT
 
 At the moment, LangDoc is using Discord as an easy-to-use and robust front-end chat interface. However, it was designed to be deployble in other contexts as well, e.g. speech assistants, web/smartphone apps, or command line (for testing).
 
-
 This LangDoc repository is currently being initialized using uvicorn, allowing it to be deployed locally (by running `main.py`), or remotely: 
   Its setup allows it to be instantly deployed to a [FastAPI](https://fastapi.tiangolo.com/) server, e.g. on [Railway](https://railway.app).
+
+### Cognitive Architecture
+*To always ask the most relevant, and important interview questions dynamically, LangDoc is using a cognitive architecture thinking behind the scenes.* 
+Example question:
+![Alt text](image-4.png)
+
+Example background reasoning:
+![Alt text](image.png)
+
 
 
 For further questions, don't hesitate to contact me at mail [AT] timfarkas.com!
