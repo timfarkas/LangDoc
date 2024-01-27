@@ -22,7 +22,7 @@ api_key = os.getenv('OPENAI_API_KEY')
 
 chat3 = ChatOpenAI(temperature=0,model_name="gpt-3.5-turbo-1106", api_key=api_key)
 chat4 = ChatOpenAI(temperature=0, model_name="gpt-4-1106-preview",api_key=api_key)
-dev_mode = False
+dev_mode = True
 
 # set this to true before starting langDocBack in CLI to be able to chat with it directly
 commandLineMode = False
