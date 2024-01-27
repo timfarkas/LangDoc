@@ -1,3 +1,4 @@
-__pycache__/
-Logs/
+__pycache__/*
+Logs/*
 .env
+Testing/*

@@ -202,6 +202,7 @@ async def processResponse(patientMessage, user_context):
 
 # takes user_context, looks at user_context["bayesAdvice"] and extracts diagnoses from it, adding them to user_context["diagnoses"]
 def generateDiagnoses(user_context):
+    logger = user_context["logger"]
     bayesAdvice = user_context["bayesAdvice"]
     diagnoses = None
     if bayesAdvice and (bayesAdvice.content.__contains__('#### List of Questions') or bayesAdvice.content.__contains__('Step 4: List of Questions')) and bayesAdvice.content.__contains__("Step 2:"):
@@ -222,7 +223,7 @@ def passAuditAdvice(user_context):
     logger.debug("langDocBack.passAuditAdvice()")
     user_context["docConvo"].addMessage("*Analyzing our conversation so far, here's my assessment for now:*", "ai")
     user_context["docConvo"].addMessage("**"+user_context["auditAdvice"]+"**", "ai")
-    user_context["docConvo"].addMessage("*You may continue to refine this assessment by continuing to answer further questions. You can also use !langdoc quit, to quit LangDoc.    *", "ai")
+    user_context["docConvo"].addMessage("*You may continue to refine this assessment by continuing to answer further questions. You can also use !langdoc quit, to quit LangDoc.*", "ai")
     return user_context
 
 # asks a summary agent to look at the conversation history in the user_context and an optional previous summaries and outputs an (updated) summary of the conversation as a string
