@@ -8,6 +8,19 @@ from langchain.schema import (
 )
 
 class Conversation:
+    """
+    This class implements a Conversation type that is designed to manage a sequence of messages in a conversation history. It provides the following methods:
+    - __init__(self, messages=None, logger=None): Initializes the conversation with an optional list of messages and an optional logger. If 'messages' is provided, it should be a list of message objects or another Conversation instance. The 'logger' argument allows for a custom logging.Logger object to be used; if not provided, the default logger is used.
+    - __iter__(self): Allows iteration over the messages in the conversation, returning an iterator object.
+    - __getitem__(self, key): Enables access to messages by their index, where 'key' is the index of the desired message in the conversation history.
+    - __len__(self): Returns the number of messages in the conversation by delegating to the conversation's internal list __len__ method.
+    - addMessage(self, messages, messageType=None): Adds one or more messages to the conversation. If 'messages' is a single message object or a string representing the message content, it is appended to the conversation. If 'messages' is a list or another Conversation instance, each message is added individually. The 'messageType' parameter is optional and should be provided as a string if 'messages' is a string, indicating the type of the message ('human', 'AI', or 'System').
+    Additional methods include:
+    - getLastMessage(self): Retrieves the last message in the conversation, if any, or returns None if the conversation is empty.
+    - clear(self): Clears all messages from the conversation, resetting the conversation history to an empty state.
+    - getMessagesByType(self, messageType): Retrieves a list of messages of a specific type from the conversation, where 'messageType' is a string indicating the desired message type ('human', 'AI', or 'System').
+    """
+
     conversation = None
     logger = None
     lastNewRequestLen = 0
@@ -23,7 +36,7 @@ class Conversation:
                 else:
                     conversation.append(messages)
             else:
-                raise TypeError("Conversation(): Error! Provided initial object are no messages.")
+                raise TypeError("Conversation(): Error! Provided initial objecs are no messages.")
         self.conversation = conversation
         if logger == None:
             self.logger = logging.getLogger()

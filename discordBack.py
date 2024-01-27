@@ -1,9 +1,10 @@
-# from OpenAIAPI import initAPI, initPrompt, interact_with_openai, getAssistantMessage, quitLangDoc, check_api_key
 from langDocBack import initLangDocAPI, initPatientConvo, processResponse
 from collections import defaultdict
 import asyncio
 import logging
 from Conversation import Conversation
+from dotenv import load_dotenv
+import os
 
 logging.basicConfig(level=logging.INFO)
 
@@ -32,7 +33,10 @@ async def generateResponse(bot, data) -> str:
         
         global user_contexts
         user_context = user_contexts[user_id]
-        api_key = "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"
+
+        load_dotenv()
+
+        api_key = os.getenv('OPENAI_API_KEY')
         responses = []
         user_context["user_id"] = user_id
         user_context["logger"] = logger
@@ -147,7 +151,7 @@ async def process_message(bot, data):
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(start_bot(loop))
+    loop.run_until_complete(start_bot())
 
 
 #if __name__ == '__main__':
