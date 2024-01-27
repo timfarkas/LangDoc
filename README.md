@@ -1,6 +1,8 @@
 
-Note: LangDoc is not under active maintenance at the moment. Contact mail [AT] timfarkas.com if you are interested in continuing development.
 ![Logo](Logo.png)
+
+
+Note: LangDoc is not under active maintenance at the moment. Contact mail [AT] timfarkas.com if you are interested in continuing development.
 # LangDoc
 
 LangDoc (LangDoc.AI) is an accessible open-source symptom checker and anamnesis tool that can interview patients about their symptoms in natural language via a simple chat interface - in all prominent languages. 
