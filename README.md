@@ -61,6 +61,7 @@ This LangDoc repository is currently being initialized using uvicorn, allowing i
 
 ### Cognitive Architecture
 *To always ask the most relevant, and important interview questions dynamically, LangDoc is using a cognitive architecture thinking behind the scenes.* 
+
 Example question:
 ![Alt text](image-4.png)
 
