@@ -1,16 +1,12 @@
----
-title: FastAPI
-description: A FastAPI server
-tags:
-  - fastapi
-  - python
----
 
 Note: LangDoc is not under active maintenance at the moment. Contact mail [AT] timfarkas.com if you are interested in continuing development.
-
+![Logo](Logo.png)
 # LangDoc
 
 LangDoc (LangDoc.AI) is an accessible open-source symptom checker and anamnesis tool that can interview patients about their symptoms in natural language via a simple chat interface - in all prominent languages. 
+
+View the [LangDoc Memo here](https://timfarkas.notion.site/LangDoc-804e17040ca04439b06b92ee12275d07?pvs=4).
+
 
 ### **Current Features**
 ⇒ **Interviews patients in natural language via chat** in an empathic and professional manner
@@ -40,7 +36,8 @@ Please refer to [#Technical details]
 
 # Demo
 ### Initializing a conversation
-![Beginning of conversation](image.png)
+*LangDoc is activated using the '!langdoc' command ('!dev' if in development mode).*
+![Beginning of conversation](image-3.png)
 
 ### Powerful dynamic anamnesis capabilities
 *Example conversation with fake medical data* 
