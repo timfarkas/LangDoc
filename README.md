@@ -59,3 +59,6 @@ At the moment, LangDoc is using Discord as an easy-to-use and robust front-end c
 
 This LangDoc repository is currently being initialized using uvicorn, allowing it to be deployed locally (by running `main.py`), or remotely: 
   Its setup allows it to be instantly deployed to a [FastAPI](https://fastapi.tiangolo.com/) server, e.g. on [Railway](https://railway.app).
+
+
+For further questions, don't hesitate to contact me at mail [AT] timfarkas.com!
