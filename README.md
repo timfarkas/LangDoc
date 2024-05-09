@@ -1,8 +1,6 @@
-
 ![Logo](Logo.png)
 
 
-Note: LangDoc is not under active maintenance at the moment. Contact mail [AT] timfarkas.com if you are interested in continuing development.
 # LangDoc
 
 LangDoc (LangDoc.AI) is an accessible open-source symptom checker and anamnesis tool that can interview patients about their symptoms in natural language via a simple chat interface - in all prominent languages. 
@@ -67,6 +65,10 @@ Example question:
 
 Example background reasoning:
 ![Alt text](image.png)
+
+# License
+This project is available under the MIT license for non-commercial, open-source use. If you wish to use this project for commercial purposes, different terms apply. Please contact me to discuss terms for a commercial license.
+
 
 
 
