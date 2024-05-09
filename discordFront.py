@@ -5,16 +5,23 @@ import discordBack
 import asyncio
 import logging
 from discord.ext import commands
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("discordFront")
 
 dev_mode = True
-BOT_TOKEN = "MTEyNzE5ODMwMDgxMTA1NTE0Ng.GBBFKy.c2qJf9v38nr2_nTp2Pum2wGHCc-9CIxI2xNYNI"
+BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
 if dev_mode == True:
     ## dev bot token
-    BOT_TOKEN = "MTEyNzIzOTQyMzI1MjIzNDM0MA.GNQ7WY.HFRZXogp853gW7uRTz4W4jRsQMNqhEHJEecqcs"
+    BOT_TOKEN = os.getenv("DISCORD_DEV_BOT_TOKEN")
+
+
+
+
 
 intents = discord.Intents.default()
 intents.messages = True
